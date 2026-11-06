@@ -8,11 +8,14 @@
 # 用法: remote-battery.sh [IP[:PORT]] [--deep] [--json]
 #   不传 IP 时自动找电视（已连接 → 缓存 IP → 扫描）。
 #
-# 原理：电量由蓝牙 HID 服务写进 Settings.Global 的 bluetooth_hid_battery_<MAC大写>，
-# 遥控器重连/按键时刷新；--deep 时再看 logcat 的 hid_battery_callback /
-# onCharacteristicRead.battery / Xaomi RC info 拿原始值与阈值。
+# 原理：电量由蓝牙 HID 服务写进 Settings.Global 的 <prefix><MAC大写>。
+# 小米实测前缀是 bluetooth_hid_battery_，由 provider tvp_battery_key_prefix 提供；
+# provider 为空（未匹配机型）时回退原前缀并提示。遥控器重连/按键时刷新；
+# --deep 时再看 logcat 的 hid_battery_callback / onCharacteristicRead.battery /
+# Xaomi RC info 拿原始值与阈值。
 #
-# 退出码: 0 成功；1 连不上电视；2 连上了但读不到电量（红外遥控器/未配对）
+# 退出码: 0 成功；2 连上了但读不到电量（红外遥控器/未配对）或连接中断；
+#         4 找不到可用电视
 set -uo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -30,6 +33,8 @@ for a in "$@"; do
   esac
 done
 
+jesc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+
 t0=$(now_ms)
 
 # 1) 拿连接：显式 IP 直接连；否则交给 ensure-tv 走缓存/扫描阶梯
@@ -40,24 +45,32 @@ if [[ -n "$TARGET" ]]; then
   if [[ "$st" != "device" ]]; then
     echo "连不上 ${TARGET}（状态: ${st:-未知}）。" >&2
     echo "unauthorized = 电视上按「允许」；offline = 电视待机/重启中，先唤醒。" >&2
-    exit 1
+    exit 2
   fi
   dev="$TARGET"
 else
   dev="$(bash "$SKILL_DIR/scripts/ensure-tv.sh" 2>/dev/null || true)"
   if [[ -z "$dev" ]]; then
     echo "找不到可用电视连接。运行 scripts/ensure-tv.sh -v 可看到卡在哪一级。" >&2
-    exit 1
+    exit 4
   fi
 fi
 
+# 电量 Settings 键前缀：provider 优先；未知机型回退原来的小米前缀并提示。
+tvp_load_provider
+batt_prefix="$(tvp_provider_call tvp_battery_key_prefix)"
+if [[ -z "$batt_prefix" ]]; then
+  batt_prefix="bluetooth_hid_battery_"
+  echo "提示: 当前机型没有 provider 电量键前缀（${TVPILOT_PROVIDER_NAME}），回退 bluetooth_hid_battery_；读不到请确认遥控器类型。" >&2
+fi
+
 # 2) 快路径：一次 adb shell 取回型号 / 配对列表 / 电量键（约 0.3s）
-CMD='echo "@@MODEL@@"; getprop ro.product.model; echo "@@BOND@@"; dumpsys bluetooth_manager 2>/dev/null | grep -A8 -i "Bonded devices"; echo "@@BATT@@"; settings list global 2>/dev/null | grep bluetooth_hid_battery'
+CMD="echo \"@@MODEL@@\"; getprop ro.product.model; echo \"@@BOND@@\"; dumpsys bluetooth_manager 2>/dev/null | grep -A8 -i \"Bonded devices\"; echo \"@@BATT@@\"; settings list global 2>/dev/null | grep -F '$batt_prefix'"
 raw="$(tv_adb -s "$dev" shell "$CMD" 2>/dev/null | tr -d '\r')"
 
 if [[ -z "$raw" ]]; then
   echo "adb 连接中断（${dev}）。电视可能刚待机或重启，重跑一次即可。" >&2
-  exit 1
+  exit 2
 fi
 
 model="$(printf '%s\n' "$raw" | sed -n '/^@@MODEL@@$/{n;p;}')"
@@ -66,11 +79,14 @@ batt="$(printf '%s\n' "$raw" | sed -n '/^@@BATT@@$/,$p' | tail -n +2)"
 
 batt_line="$(printf '%s\n' "$batt" | grep -v 'count' | head -1)"
 if [[ -z "$batt_line" ]]; then
-  # 没有 bluetooth_hid_battery_* 键：红外遥控器 / 未配对 / 从未上报
+  # 没有 <prefix><MAC> 键：红外遥控器 / 未配对 / 从未上报
+  updated_at="$(date +%Y-%m-%dT%H:%M:%S%z)"
   if [[ "$JSON" == 1 ]]; then
-    printf '{"device":"%s","model":"%s","battery":null,"reason":"no_hid_battery_key"}\n' "$dev" "${model:-}"
+    printf '{"device":"%s","provider":"%s","provider_source":"%s","model":"%s","battery":null,"percent":null,"source":null,"reason":"no_hid_battery_key","updated_at":"%s"}\n' \
+      "$(jesc "$dev")" "$(jesc "$TVPILOT_PROVIDER_NAME")" "$(jesc "$TVPILOT_PROVIDER_SOURCE")" \
+      "$(jesc "${model:-}")" "$(jesc "$updated_at")"
   else
-    echo "电视 ${dev} 上读不到遥控器电量：没有 bluetooth_hid_battery_* 键。"
+    echo "电视 ${dev} 上读不到遥控器电量：没有 ${batt_prefix}* 键。"
     echo "可能原因：遥控器是红外（不报电量）、未配对，或这台电视从没收到过上报。"
     echo "去电视 UI 看：设置 → 遥控器/蓝牙。"
   fi
@@ -79,7 +95,7 @@ fi
 
 key="${batt_line%%=*}"
 pct="${batt_line#*=}"
-mac="${key#bluetooth_hid_battery_}"
+mac="${key#$batt_prefix}"
 case "$pct" in
   '' | *[!0-9]*)
     echo "读到的电量值不是数字：${batt_line}" >&2
@@ -117,7 +133,7 @@ if [[ "$DEEP" == 1 ]]; then
   fi
   printf '%s\n' "$logtxt" | grep -q 'HID_BATTERY_WARRING' && warring="是"
 fi
-# 没跑深查时用实测阈值兜底（这台机器实测 0x19=25%，见 references/remote-battery.md）
+# 没跑深查时用实测阈值兜底（这台机器实测 0x19=25%，见 references/operations/remote-battery.md）
 [[ -z "$thr" ]] && thr=25
 
 # 4) 判读
@@ -128,13 +144,17 @@ else level="低电量"; advice="尽快换电池（多数小米语音遥控器是
 prev="$(state_get remote_battery)"
 prev_at="$(state_get remote_updated_at)"
 thr_txt="（低电量阈值 ${thr}%）"
+updated_at="$(date +%Y-%m-%dT%H:%M:%S%z)"
 
 # 5) 输出：结论在前，证据其次，≤20 行
 if [[ "$JSON" == 1 ]]; then
-  printf '{"device":"%s","model":"%s","mac":"%s","name":"%s","battery":%s,"level":"%s","low_threshold":%s,"last_report":"%s","warning_seen":%s,"deep":%s,"elapsed_ms":%s}\n' \
-    "$dev" "${model:-}" "$mac" "$name" "$pct" "$level" "${thr:-null}" "$last_report" \
+  printf '{"device":"%s","provider":"%s","provider_source":"%s","model":"%s","mac":"%s","name":"%s","battery":%s,"percent":%s,"source":"settings","level":"%s","low_threshold":%s,"last_report":"%s","warning_seen":%s,"deep":%s,"updated_at":"%s","elapsed_ms":%s}\n' \
+    "$(jesc "$dev")" "$(jesc "$TVPILOT_PROVIDER_NAME")" "$(jesc "$TVPILOT_PROVIDER_SOURCE")" \
+    "$(jesc "${model:-}")" "$(jesc "$mac")" "$(jesc "$name")" \
+    "$pct" "$pct" "$(jesc "$level")" "${thr:-null}" "$(jesc "$last_report")" \
     "$([[ "$warring" == "是" ]] && echo true || echo false)" \
-    "$([[ "$DEEP" == 1 ]] && echo true || echo false)" "$(( $(now_ms) - t0 ))"
+    "$([[ "$DEEP" == 1 ]] && echo true || echo false)" \
+    "$(jesc "$updated_at")" "$(( $(now_ms) - t0 ))"
 else
   if [[ -n "$model" ]]; then echo "电视: ${dev}（${model}）"; else echo "电视: ${dev}"; fi
   echo "遥控器: ${mac}  ${name}"
@@ -157,5 +177,5 @@ state_set tv_ip "${dev%%:*}"
 state_set tv_model "$model"
 state_set remote_mac "$mac"
 state_set remote_battery "$pct"
-state_set remote_updated_at "$(date +%Y-%m-%dT%H:%M:%S%z)"
+state_set remote_updated_at "$updated_at"
 exit 0

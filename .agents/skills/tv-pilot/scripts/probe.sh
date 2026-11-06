@@ -8,6 +8,7 @@
 set -uo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$SKILL_DIR/scripts/lib.sh"
 JSON=0
 IP=""
 for a in "$@"; do
@@ -22,7 +23,7 @@ if [[ -z "$IP" ]]; then
 fi
 if [[ -z "$IP" ]]; then
   echo "找不到电视；可显式传入 IP：scripts/probe.sh <IP> [输出目录]" >&2
-  exit 1
+  exit 4
 fi
 
 ADB="$SKILL_DIR/scripts/adb.sh"
@@ -31,14 +32,14 @@ mkdir -p "$OUT"
 
 run() { "$ADB" -s "${IP}:5555" shell "$@" 2>/dev/null | tr -d '\r'; }
 
-echo "连接 ${IP}:5555 ..."
+[[ "$JSON" == 1 ]] || echo "连接 ${IP}:5555 ..."
 "$ADB" connect "${IP}:5555" >/dev/null 2>&1 || true
 
 if ! "$ADB" devices | grep -q "${IP}:5555[[:space:]]*device"; then
   echo "未连接成功。当前设备列表：" >&2
   "$ADB" devices >&2
   echo "unauthorized = 电视上还有授权框没按；offline = 开关没生效，重启电视再试" >&2
-  exit 1
+  exit 2
 fi
 
 if [[ "$JSON" == 1 ]]; then
@@ -46,9 +47,11 @@ if [[ "$JSON" == 1 ]]; then
   raw="$("$ADB" -s "${IP}:5555" shell "$CMD" 2>/dev/null | tr -d '\r')"
   field() { printf '%s\n' "$raw" | awk -v k="$1" '$0==k {getline; print; exit}'; }
   jesc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+  num_or_zero() { case "$1" in '' | *[!0-9]*) printf '0' ;; *) printf '%s' "$1" ;; esac; }
   printf '{"model":"%s","brand":"%s","sdk":"%s","fingerprint":"%s","packages":%s,"third_party":%s,"child_mode_keys":%s}\n' \
     "$(jesc "$(field @@MODEL@@)")" "$(jesc "$(field @@BRAND@@)")" "$(jesc "$(field @@SDK@@)")" \
-    "$(jesc "$(field @@FP@@)")" "$(field @@PKG@@)" "$(field @@TPKG@@)" "$(field @@CHILD@@)"
+    "$(jesc "$(field @@FP@@)")" "$(num_or_zero "$(field @@PKG@@)")" \
+    "$(num_or_zero "$(field @@TPKG@@)")" "$(num_or_zero "$(field @@CHILD@@)")"
   exit 0
 fi
 
@@ -81,7 +84,10 @@ run settings list system | grep -iE 'child|kid|play_time|user_mode' | tee "$OUT/
 
 echo
 echo "=== 广告/统计相关包（候选） ==="
-grep -iE 'ad|push|analy|stat' "$OUT/packages.txt" 2>/dev/null \
+tvp_load_provider
+AD_RE="$(tvp_provider_call tvp_ad_patterns)"
+[[ -n "$AD_RE" ]] || AD_RE='ad|push|analy|stat'
+grep -iE "$AD_RE" "$OUT/packages.txt" 2>/dev/null \
   | grep -viE 'download|provider|settings|media|launcher|packageinstaller' \
   | sed 's/package://' | tee "$OUT/ad-candidates.txt"
 

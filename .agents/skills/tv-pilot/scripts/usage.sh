@@ -6,13 +6,14 @@
 set -uo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$SKILL_DIR/scripts/lib.sh"
 IP="${1:-}"
 if [[ -z "$IP" ]]; then
   IP="$(bash "$SKILL_DIR/scripts/ensure-tv.sh" 2>/dev/null | cut -d: -f1)" || true
 fi
 if [[ -z "$IP" ]]; then
   echo "找不到电视；可显式传入 IP：bash scripts/usage.sh <IP> [输出目录]" >&2
-  exit 1
+  exit 4
 fi
 
 ADB="$SKILL_DIR/scripts/adb.sh"
@@ -21,7 +22,7 @@ mkdir -p "$OUT"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "需要 python3 做统计（macOS 自带或 brew install python）" >&2
-  exit 1
+  exit 2
 fi
 
 run() { "$ADB" -s "${IP}:5555" shell "$@" 2>/dev/null | tr -d '\r'; }
@@ -32,8 +33,13 @@ if ! "$ADB" devices | grep -q "${IP}:5555[[:space:]]*device"; then
   echo "未连接成功。当前设备列表：" >&2
   "$ADB" devices >&2
   echo "unauthorized = 电视上授权框没按；offline/refused = 电视待机或 ADB 开关复位" >&2
-  exit 1
+  exit 2
 fi
+
+# 播放日志路径由 provider 提供（小米：/sdcard/miio/miothost.txt）；
+# 为空说明这台机型没有已知的米家日志，跳过播放记录解析，其余统计照常。
+tvp_load_provider
+PLAY_LOG="$(tvp_provider_call tvp_play_log_path)"
 
 TODAY="$(run date +%Y-%m-%d)"
 NOW="$(run date +%H:%M:%S)"
@@ -46,8 +52,14 @@ run 'dumpsys power' > "$OUT/power.txt"
 run 'dumpsys display' > "$OUT/display.txt"
 run 'dumpsys window | grep -m1 mCurrentFocus' > "$OUT/focus.txt"
 run 'cat /proc/uptime' > "$OUT/uptime.txt"
-if run 'test -f /sdcard/miio/miothost.txt && echo yes' | grep -q yes; then
-  run 'cat /sdcard/miio/miothost.txt' > "$OUT/miothost.txt"
+if [[ -n "$PLAY_LOG" ]]; then
+  if run "test -f '$PLAY_LOG' && echo yes" | grep -q yes; then
+    run "cat '$PLAY_LOG'" > "$OUT/miothost.txt"
+  else
+    echo "提示: provider 给出的播放日志不存在：${PLAY_LOG}（跳过播放记录）" >&2
+  fi
+else
+  echo "提示: 当前机型没有 provider 播放日志路径（tvp_play_log_path 为空），跳过米家播放记录。" >&2
 fi
 run "logcat -b main -d | grep -E 'MiTVOtService_PW|video_name|PLAY_VIDEO_START' | tail -300" > "$OUT/main-video.txt"
 
@@ -242,4 +254,4 @@ PY
 
 echo
 echo "原始数据: $OUT"
-echo "口径与坑: $SKILL_DIR/references/usage-stats.md"
+echo "口径与坑: $SKILL_DIR/references/operations/usage-stats.md"

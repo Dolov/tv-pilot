@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 # 设备档案工具
 #
-#   device-profile.sh init [--name <slug>]   从 _template.md 生成骨架（读当前连接的设备）
-#   device-profile.sh lint [file...]         校验必填字段 / 章节 / 证据 / 脱敏（默认全部档案）
-#   device-profile.sh index                  重建 references/devices/README.md 支持矩阵
+#   device-profile.sh init [--name <slug>] [--local]
+#       从 _template.md 生成骨架（读当前连接的设备）。
+#       --local 写到 ${TVPILOT_DEVICES_DIR}（默认 ~/.config/tv-pilot/devices，自动 mkdir），
+#       不污染仓库；同名本地档案会覆盖 identify-tv 的仓库档案匹配。
+#   device-profile.sh lint [file...]
+#       校验必填字段 / 章节 / 证据 / 脱敏。
+#       默认同时校验仓库档案和本地覆盖档案（本地目录不存在时跳过，不报错）。
+#   device-profile.sh index
+#       重建 references/devices/README.md 支持矩阵（仍只统计仓库档案）。
 #
-# 只读：init 只读设备信息，lint/index 只改本仓库文件。
+# 只读：init 只读设备信息；lint/index 只读档案，index 只改本仓库 README。
 set -uo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$SKILL_DIR/scripts/lib.sh"
 DEV_DIR="$SKILL_DIR/references/devices"
 TEMPLATE="$DEV_DIR/_template.md"
 README="$DEV_DIR/README.md"
@@ -17,8 +24,19 @@ CAP_VALUES="verified|partial|unknown|unsupported"
 SECTIONS="设备身份|ADB 接入|桌面与屏保|使用统计|儿童模式|可禁用|已知坑|证据"
 
 usage() {
-  sed -n '2,9p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  cat <<'EOF'
+设备档案工具
+
+  device-profile.sh init [--name <slug>] [--local]
+      从 _template.md 生成骨架（读当前连接的设备）；--local 写到 $TVPILOT_DEVICES_DIR
+  device-profile.sh lint [file...]
+      校验必填字段 / 章节 / 证据 / 脱敏；默认仓库档案 + 本地覆盖档案
+  device-profile.sh index
+      重建 references/devices/README.md 支持矩阵（只统计仓库档案）
+EOF
 }
+
+disp() { printf '%s' "${1#"$SKILL_DIR"/}"; }
 
 fm_for() { awk 'NR==1 && $0=="---" {inside=1; next} inside && $0=="---" {exit} inside {print}' "$1" 2>/dev/null; }
 fm_field() { fm_for "$1" | awk -F': *' -v k="$2" '$1==k {sub(/^[^:]*:[[:space:]]*/,""); print; exit}'; }
@@ -35,10 +53,11 @@ slugify() {
 
 # ---------- init ----------
 cmd_init() {
-  local name=""
+  local name="" local_mode=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --name) name="$2"; shift 2 ;;
+      --local) local_mode=1; shift ;;
       *) shift ;;
     esac
   done
@@ -46,7 +65,7 @@ cmd_init() {
   kv="$(bash "$SKILL_DIR/scripts/identify-tv.sh" --kv 2>/dev/null)" || true
   if [[ -z "$kv" ]]; then
     echo "没拿到设备信息：先确保电视连得上（bash scripts/ensure-tv.sh -v）" >&2
-    exit 1
+    exit 4
   fi
   local brand model device sdk fp home dev
   brand="$(printf '%s\n' "$kv" | awk -F= '$1=="brand"{sub(/^[^=]*=/,""); print; exit}')"
@@ -56,15 +75,31 @@ cmd_init() {
   fp="$(printf '%s\n' "$kv" | awk -F= '$1=="fingerprint"{sub(/^[^=]*=/,""); print; exit}')"
   home="$(printf '%s\n' "$kv" | awk -F= '$1=="home"{sub(/^[^=]*=/,""); print; exit}')"
   dev="$(printf '%s\n' "$kv" | awk -F= '$1=="dev"{sub(/^[^=]*=/,""); print; exit}')"
+  local id_slug
+  id_slug="$(printf '%s\n' "$kv" | awk -F= '$1=="profile_slug"{sub(/^[^=]*=/,""); print; exit}')"
 
+  if [[ -z "$name" && -n "$id_slug" ]]; then
+    name="$id_slug"
+  fi
   if [[ -z "$name" ]]; then
     name="$(slugify "$brand")-$(slugify "$model")"
     [[ "$name" == - ]] && name="$(slugify "$device")"
   fi
   [[ -n "$name" ]] || { echo "无法自动命名，请用 --name 指定 slug（如 hisense-a6g）" >&2; exit 1; }
-  local out="$DEV_DIR/$name.md"
-  [[ -e "$out" ]] && { echo "档案已存在：$out（改名或先删除）" >&2; exit 1; }
-  [[ -f "$TEMPLATE" ]] || { echo "缺少模板：$TEMPLATE" >&2; exit 1; }
+  local out_dir="$DEV_DIR"
+  if [[ "$local_mode" == "1" ]]; then
+    out_dir="$TVPILOT_DEVICES_DIR"
+    mkdir -p "$out_dir" 2>/dev/null || {
+      echo "无法创建本地档案目录：$out_dir" >&2
+      exit 2
+    }
+  fi
+  local out="$out_dir/$name.md"
+  [[ -e "$out" ]] && { echo "档案已存在：$(disp "$out")（改名或先删除）" >&2; exit 1; }
+  if [[ "$local_mode" == "1" && -e "$DEV_DIR/$name.md" ]]; then
+    echo "注意：仓库已有同名档案 $(disp "$DEV_DIR/$name.md")；本地档案会覆盖它的匹配结果。" >&2
+  fi
+  [[ -f "$TEMPLATE" ]] || { echo "缺少模板：$TEMPLATE" >&2; exit 4; }
 
   local s brand_slug
   brand_slug="$(slugify "$brand")"
@@ -88,10 +123,10 @@ cmd_init() {
   s="${s/| 默认桌面 | |/| 默认桌面 | ${home} |}"
   printf '%s\n' "$s" >"$out"
 
-  echo "已生成: ${out#"$SKILL_DIR"/}"
+  echo "已生成: $(disp "$out")"
   echo "  - 连接: ${dev}"
   echo "  - 只填实际测过的；没测的保持 unknown"
-  echo "  - 填完跑: bash scripts/device-profile.sh lint ${out#"$SKILL_DIR"/}"
+  echo "  - 填完跑: bash scripts/device-profile.sh lint $(disp "$out")"
   echo "  - 再跑:   bash scripts/device-profile.sh index"
 }
 
@@ -110,14 +145,32 @@ count_section_lines() { # file, section-title-prefix
 
 cmd_lint() {
   local files=() f
+  local count=0 missing=0
   if [[ $# -gt 0 ]]; then
-    files=("$@")
+    for f in "$@"; do
+      [[ -f "$f" ]] || { echo "✗ 不存在: $f" >&2; missing=1; continue; }
+      files[$count]="$f"
+      count=$((count + 1))
+    done
   else
-    files=("$DEV_DIR"/*.md)
+    for f in "$DEV_DIR"/*.md; do
+      [[ -f "$f" ]] || continue
+      files[$count]="$f"
+      count=$((count + 1))
+    done
+    if [[ "$TVPILOT_DEVICES_DIR" != "$DEV_DIR" && -d "$TVPILOT_DEVICES_DIR" ]]; then
+      for f in "$TVPILOT_DEVICES_DIR"/*.md; do
+        [[ -f "$f" ]] || continue
+        files[$count]="$f"
+        count=$((count + 1))
+      done
+    fi
   fi
-  local fail=0 checked=0
-  for f in "${files[@]}"; do
-    [[ -f "$f" ]] || { echo "✗ 不存在: $f" >&2; fail=1; continue; }
+
+  local fail=0 checked=0 i=0
+  while [[ "$i" -lt "$count" ]]; do
+    f="${files[$i]}"
+    i=$((i + 1))
     case "$(basename "$f")" in _* | README.md | *-apps.md) continue ;; esac
     checked=$((checked + 1))
     local errs=""
@@ -157,15 +210,16 @@ cmd_lint() {
     leaks="$(grep -nE '(^|[^0-9.])(([0-9]{1,3})\.){3}([0-9]{1,3})([^0-9]|$)|([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$f" 2>/dev/null || true)"
     [[ -n "$leaks" ]] && errs="$errs\n  - 疑似敏感信息（IP/MAC/邮箱）:\n${leaks//$'\n'/$'\n'    }"
     if [[ -n "$errs" ]]; then
-      echo "✗ ${f#"$SKILL_DIR"/}"
+      echo "✗ $(disp "$f")"
       printf '%b\n' "$errs"
       fail=1
     else
-      echo "✓ ${f#"$SKILL_DIR"/}"
+      echo "✓ $(disp "$f")"
     fi
   done
-  [[ "$checked" -eq 0 ]] && echo "（没有可检查的档案；排除 _ 开头和 README）"
+  [[ "$checked" -eq 0 && "$missing" -eq 0 ]] && echo "（没有可检查的档案；排除 _ 开头和 README）"
   [[ "$fail" == 0 ]] || exit 1
+  [[ "$missing" == 0 ]] || exit 4
   echo "lint 通过：${checked} 份档案"
 }
 
@@ -186,7 +240,7 @@ cmd_index() {
     [[ -z "${verified// /}" ]] && verified="—"
     rows="${rows}| [${prof}](<${f##*/}>) | ${brand} | ${model} | ${sdk} | ${ver} | ${verified} |\n"
   done
-  [[ -f "$README" ]] || { echo "缺少 $README" >&2; exit 1; }
+  [[ -f "$README" ]] || { echo "缺少 $README" >&2; exit 4; }
   local tmp; tmp="$(mktemp "${README}.XXXXXX")"
   awk -v rows="$(printf '%b' "$rows")" '
     /<!-- DEVICE-MATRIX:BEGIN -->/ {print; print ""; print "| 档案 | 品牌 | 型号 | SDK | 验证日期 | verified 能力 |"; print "|---|---|---|---|---|---|"; printf "%s", rows; print ""; skip=1; next}
