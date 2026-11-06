@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 全量真机回归：把 TV HUD 现有每个页面都走一遍并断言，确保改动不碰坏老功能。
+# 全量真机回归：把 tv-pilot 现有每个页面都走一遍并断言，确保改动不碰坏老功能。
 #
 # 覆盖：
 #   1. 首页：菜单 5 项都在，默认选中第 1 项；
@@ -11,7 +11,7 @@
 #   7. 全程无 FATAL EXCEPTION。
 #
 # 用法：
-#   bash tests/e2e/full-regression.sh              # 装 .build/out/tvhud.apk 再全量跑
+#   bash tests/e2e/full-regression.sh              # 装 .build/out/tv-pilot.apk 再全量跑
 #   bash tests/e2e/full-regression.sh --no-install  # 测电视上当前版本
 # 需要：电视已连 adb。退出码 0=全过，1=有失败，2=环境不满足。
 set -uo pipefail
@@ -19,7 +19,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 SKILL="$ROOT/.agents/skills/tv-pilot"
-APK="$ROOT/.build/out/tvhud.apk"
+APK="$ROOT/.build/out/tv-pilot.apk"
 INSTALL=1
 
 while [[ $# -gt 0 ]]; do
@@ -85,7 +85,7 @@ if [[ "$INSTALL" -eq 1 ]]; then
     exit 2
   fi
   if bash "$SKILL/scripts/app-deploy.sh" --apk "$APK" --pkg com.dsh.tvhud \
-      --overlay --usage --acc com.dsh.tvhud/com.dsh.tvhud.BootAccessibilityService \
+      --overlay --usage --acc com.dsh.tvhud/com.dsh.tvhud.hud.BootAccessibilityService \
       >"$SHOTS/deploy.log" 2>&1; then
     pass "安装 + 授权完成（$(basename "$APK")）"
   else
@@ -98,7 +98,7 @@ fi
 # ---------- 日志采集（后台按 tag 过滤，避免电视系统日志刷爆 4MB 环缓冲） ----------
 adb_sh logcat -c >/dev/null 2>&1 || true
 : >"$LOG_FILE"
-adb_sh logcat -v time -s TVHUD:V AndroidRuntime:E >"$LOG_FILE" 2>/dev/null &
+adb_sh logcat -v time -s TVPILOT:V AndroidRuntime:E >"$LOG_FILE" 2>/dev/null &
 LOG_PID=$!
 trap 'kill "$LOG_PID" >/dev/null 2>&1 || true; wait "$LOG_PID" >/dev/null 2>&1 || true' EXIT
 
@@ -107,9 +107,9 @@ step "首页"
 key 224 1.2            # 唤醒
 adb_sh shell am force-stop com.dsh.tvhud >/dev/null 2>&1
 sleep 1
-adb_sh shell am start -n com.dsh.tvhud/.HomeActivity >/dev/null 2>&1
+adb_sh shell am start -n com.dsh.tvhud/.home.HomeActivity >/dev/null 2>&1
 sleep 3
-if resumed | grep -q 'com.dsh.tvhud/.HomeActivity'; then
+if resumed | grep -q 'com.dsh.tvhud/.home.HomeActivity'; then
   pass "首页打开（HomeActivity）"
 else
   fail "首页没打开" "$(resumed)"
@@ -119,7 +119,7 @@ screenshot "01-home"
 # ---------- 2. 今日使用 ----------
 step "今日使用（台账详情）"
 key 23 3.5
-if resumed | grep -q 'com.dsh.tvhud/.MainActivity'; then
+if resumed | grep -q 'com.dsh.tvhud/.usage.MainActivity'; then
   pass "今日使用打开（MainActivity）"
 else
   fail "今日使用没打开" "$(resumed)"
@@ -131,7 +131,7 @@ key 4 2.0
 step "使用记录（历史回看）"
 key 20 0.5
 key 23 3.5
-if resumed | grep -q 'com.dsh.tvhud/.MainActivity'; then
+if resumed | grep -q 'com.dsh.tvhud/.usage.MainActivity'; then
   pass "使用记录打开（MainActivity 历史模式）"
 else
   fail "使用记录没打开" "$(resumed)"
@@ -149,7 +149,7 @@ step "使用报告"
 key 20 0.5
 key 20 0.5
 key 23 3.5
-if resumed | grep -q 'com.dsh.tvhud/.ReportsActivity'; then
+if resumed | grep -q 'com.dsh.tvhud/.report.ReportsActivity'; then
   pass "使用报告打开（ReportsActivity）"
 else
   fail "使用报告没打开" "$(resumed)"
@@ -168,7 +168,7 @@ key 21 3.0
 screenshot "04-report-prev"
 key 23 3.0
 key 4 2.5
-if resumed | grep -q 'com.dsh.tvhud/.HomeActivity'; then
+if resumed | grep -q 'com.dsh.tvhud/.home.HomeActivity'; then
   pass "报告页返回键回到首页"
 else
   fail "报告页返回键没回首页" "$(resumed)"

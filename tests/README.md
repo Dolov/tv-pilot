@@ -5,7 +5,7 @@
 | 层 | 目录 | 覆盖 | 命令 |
 |---|---|---|---|
 | 离线脚本 | `tests/fake-adb` + `tests/run.sh` | skill 脚本的连接阶梯、识别、取数、`--json` 契约 | `make test` |
-| 纯逻辑单元 | `tests/java/` + `tests/java/stubs/` | TV HUD 里不依赖 Android 的逻辑：报告周期/聚合/洞察/几何 + 宠物等级/照顾/场次预算/题库 | `make test` |
+| 纯逻辑单元 | `tests/java/` + `tests/java/stubs/` | tv-pilot 里不依赖 Android 的逻辑：报告周期/聚合/洞察/几何 + 宠物等级/照顾/场次预算/题库 | `make test` |
 | 真机冒烟 | `tests/e2e/report-smoke.sh` | 装 APK → 打开报告 → 周/月/年导航 → 日志/崩溃/一致性断言 + 截图 | `make e2e` |
 | 全量真机回归 | `tests/e2e/full-regression.sh` | 首页 / 今日使用 / 使用记录 / 报告三页 / 屏保服务 + 归档完整性 | `make regression` |
 
@@ -32,7 +32,7 @@ tests/
 
 ## 2. 纯逻辑单元测试（纯 Java，不需要 Android）
 
-TV HUD 是「无 Gradle、直接 javac」的纯 Java 应用，没有 JUnit 基础设施。这里用
+tv-pilot 是「无 Gradle、直接 javac」的纯 Java 应用，没有 JUnit 基础设施。这里用
 `tests/java/stubs/` 下最小的 `android.content.*` / `org.json.JSONArray` 桩，把纯数据/纯计算类
 编出来，再用自带断言框架的 `ReportCoreTest` / `PetCoreTest` 跑用例：
 
@@ -40,14 +40,17 @@ TV HUD 是「无 Gradle、直接 javac」的纯 Java 应用，没有 JUnit 基�
 tests/java/
 ├── run.sh                       # 编译 + 运行（PATH 里没有可用 javac 时回退 skill 的 .tools JDK）
 ├── stubs/                       # 只为编译通过的最小 Android/JSON 桩，不会被真的调用
-└── src/                         # 用例源码（package com.dsh.tvhud，入口 ReportCoreTest / PetCoreTest）
+└── src/com/dsh/tvhud/
+    ├── report/ReportCoreTest.java  # package com.dsh.tvhud.report
+    └── pet/PetCoreTest.java        # package com.dsh.tvhud.pet
 ```
 
 覆盖：`ReportPeriod`（周/月/年边界、ISO 周序号、跨年标签）、`DayAgg`（跨小时切分、裁剪、主类别）、
 `ReportMath`（聚合、旧分类口径降级、百分比、峰值时段、周/月/年洞察、周内平均口径、`checkInvariants`）、
 `PlayEntry.parse`（只认当天、有片名的播放事件）、`BarStack`（堆叠柱高度 = 总时长，v1.13 堆叠 bug 回归）、
 `ChartAxis`（纵轴档位与轴高）、`UsageDay.snapshot`（跨线程快照）、`HistoryStore`（旧归档缺省 scheme 3、
-播放记录越界自检）。
+播放记录越界自检）；宠物侧覆盖 `PetEngine`（等级/阶段/照顾/衰减/换牙/每日结算）、`Budget`（15×3 场次、
+续时、答题失败、家长时间）、`QuizBank`（解析/抽题/判分/非法题跳过）。
 
 **加用例**：在对应 `ReportCoreTest` / `PetCoreTest` 里加一个 `runCase(...)`；测新逻辑时先把它写成不 import Android
 的纯函数（参考 `BarStack`、`ReportMath`），否则离线测试编不过。`javac` 不可用时整层 SKIP，
@@ -70,7 +73,7 @@ make e2e        # = bash tests/e2e/report-smoke.sh
 4. 返回键回到 `HomeActivity`；每个阶段截图到 `.build/e2e/` 供人眼复核。
 
 常用参数：`--no-install`（测电视上当前版本，省一次安装）、`--apk <path>`。
-断言的日志是**采集时后台过滤 `TVHUD:I`/`AndroidRuntime:E` 落文件**，不是事后 `logcat -d`——
+断言的日志是**采集时后台过滤 `TVPILOT:I`/`AndroidRuntime:E` 落文件**，不是事后 `logcat -d`——
 电视系统日志很吵，4MB 缓冲几秒就滚掉。
 
 ## 4. 全量真机回归（改动碰多个页面时）

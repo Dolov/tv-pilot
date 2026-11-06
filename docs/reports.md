@@ -75,7 +75,7 @@ HomeActivity
 ### 4.1 周报：「这一周怎么过的」
 
 ```
-TV HUD │ 使用报告   2026.10.26–11.01 已归档      [周报 月报 年报] ‹第 44 周› 回到本期
+tv-pilot │ 使用报告   2026.10.26–11.01 已归档      [周报 月报 年报] ‹第 44 周› 回到本期
 洞察  周六最长（4:04），周二最短（1:54）；19–21 点最集中。
 ┌ 合计 20h44m ┬ 日均 2h58m ┬ 单日峰值 4h04m ┬ 周末日均 3h51m（工作日 2h36m）┐
 ├──────────────────────────────┬──────────────────────────────────────────┤
@@ -96,7 +96,7 @@ TV HUD │ 使用报告   2026.10.26–11.01 已归档      [周报 月报 年�
 ### 4.2 月报：「这个月的规律」
 
 ```
-TV HUD │ 使用报告   2026.10.01–10.31 已归档      [周报 月报 年报] ‹10 月› 回到本期
+tv-pilot │ 使用报告   2026.10.01–10.31 已归档      [周报 月报 年报] ‹10 月› 回到本期
 洞察  周末日均比工作日多 90 分钟；19 点前后最集中。
 ┌ 合计 94h57m ┬ 日均 3h04m ┬ 单日峰值 4h44m ┬ 有记录 31/31 天 ┐
 ├──────────────────────────────────────┬─────────────────────────────────┤
@@ -115,7 +115,7 @@ TV HUD │ 使用报告   2026.10.01–10.31 已归档      [周报 月报 年�
 ### 4.3 年报：「全年走势与结构」
 
 ```
-TV HUD │ 使用报告   2026.01.01–11.06 进行中      [周报 月报 年报] ‹2026 年›
+tv-pilot │ 使用报告   2026.01.01–11.06 进行中      [周报 月报 年报] ‹2026 年›
 洞察  10 月日均最高（3:04），2 月最低（2:48）；19 点前后最集中。
 ┌ 合计 892h46m ┬ 日均 2h53m ┬ 最高月 94h57m（10 月·月均81:10） ┬ 覆盖 310/310 天 ┐
 ├────────────────────────────────────────────────────────────────────────────┤
@@ -256,7 +256,7 @@ for day in [windowStart, today]:
 | **P1** | 月报页（日历热力、每日趋势、周内平均、环形）+ 年报表（12 月走势、月×时热力、季度构成）+ 周期导航条 / 回到本期 / 缓存 | ~1100 行 |
 | **P2** | 入场动画、柱状图焦点下钻（OK → 当日台账）、年报日历热力（可选）、skill 侧 `report.sh --json` 对账、屏保「本周」角标 | 按需 |
 
-版本号 1.13 / 14；同步 `CHANGELOG.md`、`docs/architecture.md`、`tvhud/README.md`。
+版本号 1.15 / 16；同步 `CHANGELOG.md`、`docs/architecture.md`、`app/README.md`。
 
 ## 9. 验证
 
@@ -276,9 +276,9 @@ for day in [windowStart, today]:
 ```bash
 make apk
 cd .agents/skills/tv-pilot
-bash scripts/app-deploy.sh --apk ../../.build/out/tvhud.apk --pkg com.dsh.tvhud \
-  --activity com.dsh.tvhud/.HomeActivity --overlay --usage \
-  --acc com.dsh.tvhud/com.dsh.tvhud.BootAccessibilityService
+bash scripts/app-deploy.sh --apk ../../.build/out/tv-pilot.apk --pkg com.dsh.tvhud \
+  --activity com.dsh.tvhud/com.dsh.tvhud.home.HomeActivity --overlay --usage \
+  --acc com.dsh.tvhud/com.dsh.tvhud.hud.BootAccessibilityService
 ```
 
 验收：

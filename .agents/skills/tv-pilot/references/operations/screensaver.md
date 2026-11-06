@@ -133,24 +133,24 @@ wm.addView(view, lp);
 - **别按包名判断「没看视频」**：详情页内嵌播放时 usagestats 只有 `DetailsActivity`，`com.mitv.mivideoplayer` 永远不进前台。
 - **24h 条上 10 分钟 ≈ 3px**（1080p、220dp）：短时段极小，10 秒级会被 minW 吞成 1px。别说「没记录」，先截屏取色再下结论：找 bar 行 → 按颜色 run 取 RGB → 映射回时间（v1.3 的粉是 `244,48,152`）。
 - **服务重启首轮 tick 不能直接 append**：`lastTickWall == 0` 时没有「上一个时间点」，直接累计会把 `00:00 → 现在` 记成一整段。首轮只记时间戳，空档交给 `backfillToday()`。
-- **App 没开 `debuggable`**：`run-as com.dsh.tvhud` 读不到 `shared_prefs/hud.xml`，想核对长条数据只能看日志（`TVHUD` tag）+ 截图取色，别在 `run-as` 上耗时间。
-- **部署后第一次 `show.screensaver` 可能不 attach**（实测延迟约 1 分钟）：`exit.screensaver` → `show.screensaver` 再来一次，`logcat -d | grep TVHUD` 看到 `HUD attached` 即可。
-- **升级用 `app-deploy.sh`**（`install -r` 保数据，最稳）；`tv-hud.sh install` 只是它的薄封装。签名不匹配时安装会失败，需要先卸载再装——卸载会清 prefs/无障碍/授权，尽量别走到这一步。
+- **App 没开 `debuggable`**：`run-as com.dsh.tvhud` 读不到 `shared_prefs/hud.xml`，想核对长条数据只能看日志（`TVPILOT` tag）+ 截图取色，别在 `run-as` 上耗时间。
+- **部署后第一次 `show.screensaver` 可能不 attach**（实测延迟约 1 分钟）：`exit.screensaver` → `show.screensaver` 再来一次，`logcat -d | grep TVPILOT` 看到 `HUD attached` 即可。
+- **升级用 `app-deploy.sh`**（`install -r` 保数据，最稳）；`app.sh install` 只是它的薄封装。签名不匹配时安装会失败，需要先卸载再装——卸载会清 prefs/无障碍/授权，尽量别走到这一步。
 
 ## 首页菜单：App 启动页（v1.9 起）
 
-打开 TV HUD 先到首页菜单（`com.dsh.tvhud/.HomeActivity`），**不再直接进详情页**——详情页以后会长在菜单里（AI 语音、设置…），加功能只需要改 `HomeActivity.ITEMS`。
+打开 tv-pilot 先到首页菜单（`com.dsh.tvhud/com.dsh.tvhud.home.HomeActivity`），**不再直接进详情页**——详情页以后会长在菜单里（AI 语音、设置…），加功能只需要改 `HomeActivity.ITEMS`。
 
-- 启动组件：`HomeActivity`（Manifest 里 `MAIN` + `LEANBACK_LAUNCHER` + `LAUNCHER`）；`MainActivity` 变成子页面（`exported=true`，仍可 `am start -n com.dsh.tvhud/.MainActivity` 单独调试）
+- 启动组件：`HomeActivity`（Manifest 里 `MAIN` + `LEANBACK_LAUNCHER` + `LAUNCHER`）；`MainActivity` 变成子页面（`exported=true`，仍可 `am start -n com.dsh.tvhud/com.dsh.tvhud.usage.MainActivity` 单独调试）
 - 条目：`01 今日使用`（`ACTION_TODAY`）→ 详情页今天；`02 使用记录`（`ACTION_HISTORY`）→ 详情页历史模式（从菜单进入时落到最近有归档的一天，没有就昨天）；`03 AI 语音助手` / `04 设置`（`ACTION_SOON`，右侧「即将上线」，按确认弹 toast）
 - 加功能：`ITEMS` 里加一行 `new Item("名字", "一句话说明", ACTION_XXX)`（可选第 4 个参数是右侧标签），再在 `open()` 里分发；`ACTION_SOON` 自动置灰、不跳转
 - 遥控器：上下键换焦点、确认打开；**返回键回菜单**（再按返回退出到桌面/屏保）
-- 顶栏：左「TV HUD」（DIN 10dp 字距 0.22）+ 右「日期 · 今日 36:25」；今日时长取 `HudService.peekUsage()`，服务没起来时回落 `UsageDay.load()`，`onResume` 刷新
+- 顶栏：左「tv-pilot」（DIN 10dp 字距 0.22）+ 右「日期 · 今日 36:25」；今日时长取 `HudService.peekUsage()`，服务没起来时回落 `UsageDay.load()`，`onResume` 刷新
 - 版式：标题「使用台账」22dp；菜单是一张浮在中间的表（上下各一条发丝线、行间一条），行高 60dp，行内 序号(10dp DIN) / 名称(15dp) / 一句话说明(10dp 第三字色) / 右侧箭头或「即将上线」；焦点 = 整行 `0x1FFFFFFF` 底 + 行首 3×22dp 白色色脊（不再用彩色，颜色只留给数据）
 
 ## 详情页：时间轴 + 分段明细（v1.4 起；v1.5 视觉改版；v1.9 起从首页菜单进）
 
-屏保角标只是摘要；打开 **TV HUD** →「今日使用」是完整详情页（组件 `com.dsh.tvhud/.MainActivity`，从菜单进有返回栈，`am start -n com.dsh.tvhud/.MainActivity` 也能直接调试）：
+屏保角标只是摘要；打开 **tv-pilot** →「今日使用」是完整详情页（组件 `com.dsh.tvhud/com.dsh.tvhud.usage.MainActivity`，从菜单进有返回栈，`am start -n com.dsh.tvhud/com.dsh.tvhud.usage.MainActivity` 也能直接调试）：
 
 - 顶部：日期 / 已开机时长，右侧「今日合计」（与长条同一份数据求和）
 - 分类小计：视频 / 音乐 / 儿童学习 / 桌面系统 / 其他，按类别颜色列时长
@@ -185,7 +185,7 @@ wm.addView(view, lp);
 | 发丝线 / 焦点底 | `0x288A97A4`（1px）/ `0x18FFFFFF` |
 | 字体角色 | 合计数字＝`MIUI_EX_Light`（assets，26dp，与屏保同款）；时间码/英文标签＝`DINPro_Medium`（assets）；中文＝系统兰亭；字号克制：合计 26dp、明细 10dp、其余标签 8–10dp |
 | 版式 | 页边距左右都 64dp；但列表行内再留 padding（左 12dp / 右 16dp），类别列不贴行尾（参考左侧时间列）；顺序：眉标(10dp 字距0.18) → 合计(26dp)+分类图例(9dp) → 发丝线 → 时间轴(条高10dp，3h 刻度+1h 短刻度+现在游标) → 发丝线 → 列头(9dp) → 明细(10dp 字、28dp/行、行首 3×14dp 色脊，色脊垂直居中且高度对齐文字墨迹) |
-| 首页菜单（v1.9） | 页边距左右 64dp；眉标 TV HUD(10dp 字距 0.22) → 标题「使用台账」(22dp) → 垂直居中的菜单表（上下发丝线 + 行间发丝线，行高 60dp）→ 右下角版本号(9dp)；焦点整行底 `0x1FFFFFFF` + 3×22dp 白色色脊 |
+| 首页菜单（v1.9） | 页边距左右 64dp；眉标 tv-pilot(10dp 字距 0.22) → 标题「使用台账」(22dp) → 垂直居中的菜单表（上下发丝线 + 行间发丝线，行高 60dp）→ 右下角版本号(9dp)；焦点整行底 `0x1FFFFFFF` + 3×22dp 白色色脊 |
 | 颜色纪律 | **颜色只做数据**：时间轴色块、分类小圆点、行首色脊；正文/标签一律中性色 |
 | 列宽 | 时间列自适应（weight=1），时长 90dp 右对齐，类别 150dp 右对齐 |
 
@@ -208,7 +208,7 @@ wm.addView(view, lp);
 实现要点 / 坑：
 
 - 页面文字尺寸用 **dp**（`MainActivity.textSize()`）而不是 sp：系统 fontScale 放大时 sp 会把页面撑爆、明细被挤没（本机实测 fontScale 偏大）
-- Activity 必须用 `@android:style/Theme.Black.NoTitleBar.Fullscreen`，否则默认主题会顶一条 ActionBar 写着 "TV HUD"
+- Activity 必须用 `@android:style/Theme.Black.NoTitleBar.Fullscreen`，否则默认主题会顶一条 ActionBar 写着 "tv-pilot"
 - 明细行要给 `LayoutParams(MATCH_PARENT, 26dp)`；`LinearLayout` 里 width=0+weight 的子 View 如果不给 row 明确 MATCH_PARENT，会按内容量算错、类别列换行
 - **详情页自己的时间不计入使用**：`HudService.isUsing()` 与 `replayEvents()` 都跳过 `getPackageName()`（否则看明细的每一秒都会被记成「其他」）
 - 重置当天数据：`adb shell am broadcast -a com.dsh.tvhud.RESET_USAGE` → 服务清空 `UsageDay` 并用 UsageEvents 重建（换口径/误记后用；别用卸载清数据）

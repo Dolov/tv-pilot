@@ -8,17 +8,22 @@
 
 ### Added
 
-- TV HUD「我的宠物」P0（v1.14）：15 分钟一场 × 3 场的场次计时、到点全屏拦截、
+- **应用改名 tv-pilot（v1.15）**：桌面名称/首页眉标/TV banner 从 `TV HUD` 改为 `tv-pilot`；
+  包名仍为 `com.dsh.tvhud`（保持覆盖升级与本地数据不丢）。
+- **源码按功能分包（AI agent 友好）**：`app/src/com/dsh/tvhud/{home,usage,report,hud,pet}/`；
+  测试拆到 `tests/java/{report,pet}/`；目录 `tvhud/` → `app/`、脚本 `tv-hud.sh` → `app.sh`、
+  构建产物 `tv-pilot.apk`、keystore `tv-pilot.jks`。
+- tv-pilot「我的宠物」P0（v1.14）：15 分钟一场 × 3 场的场次计时、到点全屏拦截、
   答 3 题对 2 题再玩 5 分钟（每天最多 2 次、3 场用完即止）、2.5D 分层宠物
   （吃饭/喝水/摸摸/洗澡/刷牙、胖瘦、牙齿/换牙、帽子/衣服/翅膀）、星星/等级/进化、
   家长 PIN 设置；新增 `PET_GATE` / `PET_DEBUG` / `PET_NEAR_END` 等调试广播。
-- TV HUD「使用报告」：周报 / 月报 / 年报三套数据大屏布局，共用 KPI 卡、周期导航条与遥控器交互。
+- tv-pilot「使用报告」：周报 / 月报 / 年报三套数据大屏布局，共用 KPI 卡、周期导航条与遥控器交互。
   - 周报：7 天节奏大柱 + 日流水 + 7×24 作息热力；月报：日历热力 + 每日趋势 + 周内平均 + 环形构成；
     年报：12 个月走势 + 月份×时段热力 + 季度构成。
   - `←→` 回看上一期、`↑↓` 切换周/月/年、`OK` 回到本期；365 天窗口边界钳制。
   - 数据层：`ReportPeriod` / `DayAgg` / `Report` / `ReportMath` / `ReportEngine`，一次扫描多视图复用。
 - 归档 JSON 写入分类版本号 `v`（`UsageDay.SCHEME`），旧归档缺省按 3 兼容。
-- TV HUD 应用图标与 TV banner：`tvhud/design/icon-512.png` → `tvhud/res/` 下各密度 `ic_launcher.png`
+- tv-pilot 应用图标与 TV banner：`app/design/icon-512.png` → `app/res/` 下各密度 `ic_launcher.png`
   + `res/drawable-xhdpi/tv_banner.png`；Manifest 的 application/HomeActivity 均已引用，`build.sh` 增加 res 编译。
 
 - 测试三层：`tests/java` 纯 Java 单元测试（27 用例 / 178 条断言，覆盖报告周期、聚合、洞察、
@@ -100,7 +105,7 @@
 - `README.md` 与 `SKILL.md` 中的参考文档路径统一到 `references/operations/`、`docs/`；
   本机事实移到 `references/local.md`（生成且 gitignore）。
 - 通用脚本与机型差异分层：品牌差异进 `scripts/providers/`，设备事实进设备档案；
-  新增 `setup.sh`、`tv-hud.sh`、`require-profile.sh` 等入口。
+  新增 `setup.sh`、`app.sh`、`require-profile.sh` 等入口。
 
 ### Fixed
 

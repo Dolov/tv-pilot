@@ -129,7 +129,7 @@ LOCAL_MD="$SKILL_DIR/references/local.md"
   echo
   echo "| 项 | 值 |"
   echo "|---|---|"
-  echo "| TV HUD 版本 | \`${APP_VER:-未安装或未连接}\` |"
+  echo "| tv-pilot 版本 | \`${APP_VER:-未安装或未连接}\` |"
   echo "| 应用快照 | \`${SNAP:-无}\` |"
   echo
   echo "## 工具链"

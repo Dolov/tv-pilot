@@ -158,7 +158,7 @@ PATTERNS = [
     re.compile(r"(?<![A-Za-z0-9_.-])scripts/[A-Za-z0-9_./-]+\.sh"),
     re.compile(r"(?<![A-Za-z0-9_.-])docs/[A-Za-z0-9_./-]+\.md"),
     re.compile(r"(?<![A-Za-z0-9_.-])evals/[A-Za-z0-9_./-]+"),
-    re.compile(r"(?<![A-Za-z0-9_.-])tvhud/[A-Za-z0-9_./-]+"),
+    re.compile(r"(?<![A-Za-z0-9_.-])app/[A-Za-z0-9_./-]+"),
 ]
 
 files = []
@@ -216,8 +216,8 @@ fi
 # ---------- 7. 版本一致性 ----------
 section "7. 版本一致性（version.properties / Manifest / build.sh）"
 VERSION_FILE="$REPO_ROOT/version.properties"
-MANIFEST="$REPO_ROOT/tvhud/AndroidManifest.xml"
-BUILD_SH="$REPO_ROOT/tvhud/build.sh"
+MANIFEST="$REPO_ROOT/app/AndroidManifest.xml"
+BUILD_SH="$REPO_ROOT/app/build.sh"
 if [[ ! -f "$VERSION_FILE" ]]; then
   fail "缺少根 version.properties（两行：versionName=1.11 / versionCode=12）"
 else
@@ -230,7 +230,7 @@ else
   elif [[ "$v_name" != "$man_name" || "$v_code" != "$man_code" ]]; then
     fail "版本不一致：version.properties=${v_name}/${v_code}, manifest=${man_name}/${man_code}（build.sh 读取 properties，无需同步硬编码）"
   elif ! grep -q 'version.properties' "$BUILD_SH"; then
-    fail "tvhud/build.sh 没有读取 version.properties（版本号应只有一个来源）"
+    fail "app/build.sh 没有读取 version.properties（版本号应只有一个来源）"
   else
     pass "版本一致：${v_name} (${v_code})，build.sh 读取 version.properties"
   fi
@@ -336,7 +336,7 @@ section "10. git 跟踪文件中是否混入敏感/构建产物"
 if ! git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   skip "当前目录不是 git 仓库，跳过 git ls-files 检查"
 else
-  tracked_bad="$(git -C "$REPO_ROOT" ls-files | grep -E '(^|/)\.env$|\.apk$|(^|/)\.tools/|^tvhud/assets/.*\.(otf|ttf)$' || true)"
+  tracked_bad="$(git -C "$REPO_ROOT" ls-files | grep -E '(^|/)\.env$|\.apk$|(^|/)\.tools/|^app/assets/.*\.(otf|ttf)$' || true)"
   tracked_total="$(git -C "$REPO_ROOT" ls-files | wc -l | tr -d '[:space:]')"
   if [[ -z "$tracked_bad" ]]; then
     pass "git ls-files 干净（${tracked_total} 个文件；无 .env / APK / .tools / 字体）"

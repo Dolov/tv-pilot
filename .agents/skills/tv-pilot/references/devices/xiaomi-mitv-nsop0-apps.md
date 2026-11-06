@@ -25,7 +25,7 @@ bash scripts/apps-inventory.sh list     # 只看当前清单（不比对）
 | 包名 | 版本 | 能干什么 | 备注 |
 |---|---|---|---|
 | `com.cibn.tv` | 14.0.1.15 | CIBN 系视频入口，含优酷少儿内容；片源类 | 国内影视/少儿片源，广告较多 |
-| `com.dsh.tvhud` | 1.1 | **自研**：屏保右上角角标（开机天数/时间 + 遥控器电量），附带 ADB 守护、无障碍开机自启 | 改动走 `references/operations/dev-workflow.md`；源码在工作区 `tvhud/` |
+| `com.dsh.tvhud` | 1.1 | **自研**：屏保右上角角标（开机天数/时间 + 遥控器电量），附带 ADB 守护、无障碍开机自启 | 改动走 `references/operations/dev-workflow.md`；源码在工作区 `app/` |
 | `com.gitv.dvb.live` | 2.3.11 | DVB 直播（地面/有线频道） | 直播频道入口 |
 | `com.gitvdemo.video` | 16.10.0.221990 | 出厂演示视频 App | 基本没用，可作为禁用候选（先确认没人用） |
 | `com.hongen.app.word.ott.vip` | 1.3.6 | 洪恩识字：识字课程/小游戏，部分内容要会员 | 教育类；受系统时长限制约束 |

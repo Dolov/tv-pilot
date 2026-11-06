@@ -10,7 +10,7 @@ compatibility: macOS（脚本用 dns-sd/ipconfig/arp 做发现）或 Linux（发
 
 ## 0. 先花 10 秒确认本机状态
 
-- 读 `references/local.md`：里面是 `scripts/setup.sh` 生成的本机事实（电视地址、型号、匹配到的设备档案、TV HUD 版本、工具链状态）。
+- 读 `references/local.md`：里面是 `scripts/setup.sh` 生成的本机事实（电视地址、型号、匹配到的设备档案、tv-pilot 版本、工具链状态）。
 - 没有这个文件（或换了电视/重装了工具链）：跑 `bash scripts/setup.sh`。
 - 没有设备档案、或用户问的是别的品牌：先看第 3 节的三态规则。
 
@@ -50,14 +50,14 @@ bash scripts/tv-state.sh         # 开机 / 熄屏待机 / 关机；待机时写
 | 电视现在开机/熄屏/关机 | `bash scripts/tv-state.sh [--json]` | <1s；`--deep` 查深睡 ~7s |
 | 今天看了多久 / 看了什么 | `bash scripts/usage.sh` | 5–10s；口径见 `references/operations/usage-stats.md` |
 | 遥控器还有多少电 | `bash scripts/remote-battery.sh [--json]` | <2s；`--deep` 交叉验证 ~10s |
-| 打开 / 停止 / 构建 / 截图 TV HUD | `bash scripts/tv-hud.sh status\|on\|off\|build\|install\|screenshot` | App 控制面 |
+| 打开 / 停止 / 构建 / 截图 tv-pilot | `bash scripts/app.sh status\|on\|off\|build\|install\|screenshot` | App 控制面 |
 | 装一个 APK / 升级自研 App | `bash scripts/app-deploy.sh --apk ... --pkg ... --acc ...` | 顺序内置；不要手拼 |
 | 开机自启 / 重启后 App 不起来 | 读 `references/operations/boot-autostart.md` | `stopped=true` 坑 |
 | 屏保角标 / 今日使用长条 | 读 `references/operations/screensaver.md` | 分类、刷新、版式坑 |
 | 配儿童模式 / 限制观看时长 | 读 `references/operations/child-mode.md` | 官方模式的弱点先说清 |
 | 去广告 / 禁统计组件 | 读 `references/operations/ad-packages.md` | 三级清单 + 还原命令 |
 | ADB 开关怎么开 / 开了连不上 | 读 `references/operations/enable-adb.md` | 多数固件要重启才监听 5555 |
-| 给电视写/改一个小 App | 读 `references/operations/dev-workflow.md`，构建用 `tv-hud.sh build` | 也可用 `references/operations/build-mini-apk.md` |
+| 给电视写/改一个小 App | 读 `references/operations/dev-workflow.md`，构建用 `app.sh build` | 也可用 `references/operations/build-mini-apk.md` |
 | 我的电视不是小米 / 型号不在列表 | `identify-tv.sh` → 读 `references/porting.md` | `unknown` 时只读 |
 | 想给某个 App 加能力/改分类 | 读 `references/operations/dev-workflow.md` + `docs/providers.md` | 品牌差异进 provider |
 
@@ -82,7 +82,7 @@ bash scripts/tv-state.sh         # 开机 / 熄屏待机 / 关机；待机时写
 │   ├── app-deploy.sh      # 装 APK 的顺序 + 权限 + 无障碍条目（含写闸门）
 │   ├── app-backup.sh      # 源码保底备份/恢复
 │   ├── build-tools.sh     # 下载/定位 JDK、build-tools、android.jar、keystore
-│   ├── tv-hud.sh          # TV HUD 控制：状态/启停/构建/安装/截屏/ADB 守护
+│   ├── app.sh          # tv-pilot 控制：状态/启停/构建/安装/截屏/ADB 守护
 │   ├── require-profile.sh # 写操作闸门（matched / capability=verified）
 │   ├── device-profile.sh  # 档案 init / lint / index
 │   ├── providers/         # 品牌扩展点（每机型一个 .sh）
@@ -96,7 +96,7 @@ bash scripts/tv-state.sh         # 开机 / 熄屏待机 / 关机；待机时写
 └── evals/                 # 触发集 + 行为评测集
 ```
 
-仓库根还有 `tvhud/`（电视端 App 源码）、`docs/`（架构/契约/provider）、`tests/`（离线测试）、`AGENTS.md`（贡献者代理指南）。
+仓库根还有 `app/`（电视端 App 源码）、`docs/`（架构/契约/provider）、`tests/`（离线测试）、`AGENTS.md`（贡献者代理指南）。
 
 ## 7. 高频坑（先看这些，能省很多时间）
 
