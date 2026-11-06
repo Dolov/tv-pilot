@@ -57,7 +57,14 @@ mkdir -p "$OUT/classes" "$OUT/dex"
 
 AAPT_ASSETS=""
 [[ -d "$HERE/assets" ]] && AAPT_ASSETS="-A $HERE/assets"
+# 资源（应用图标 + TV banner）：aapt2 需要先 compile 再 link
+AAPT_RES=""
+if [[ -d "$HERE/res" ]]; then
+    "$BT/aapt2" compile --dir "$HERE/res" -o "$OUT/res.zip"
+    AAPT_RES="-R $OUT/res.zip"
+fi
 "$BT/aapt2" link -o "$OUT/unsigned.apk" --manifest "$HERE/AndroidManifest.xml" -I "$AJ" \
+    $AAPT_RES \
     --min-sdk-version 21 --target-sdk-version 22 \
     "${VERSION_ARGS[@]}" $AAPT_ASSETS
 ( cd "$OUT/dex" && zip -qj "$OUT/unsigned.apk" classes.dex )

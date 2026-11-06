@@ -40,13 +40,35 @@ tvhud/                              # 电视端 App：src/ + AndroidManifest.xml
 |---|---|
 | 列命令 | `make help`（默认 target） |
 | 仓库自检 | `make check` → `.agents/skills/tv-pilot/scripts/check.sh` |
-| 离线测试 | `make test` → `tests/run.sh`（fake adb，不连电视） |
+| 离线测试 | `make test` → `tests/run.sh`（fake adb 脚本测试 + `tests/java` 纯 Java 单元测试，不连电视） |
+| 真机冒烟 | `make e2e` → `tests/e2e/report-smoke.sh`（需要电视，装 APK 后跑报告页流程） |
+| 全量真机回归 | `make regression` → `tests/e2e/full-regression.sh`（首页/台账/记录/报告全走一遍） |
 | 构建 APK | `make apk` → `bash tvhud/build.sh`（需 `.tools/` 工具链） |
 | 重建设备矩阵 | `make index` → `device-profile.sh index` |
 | 连电视 / 识别 | `bash .agents/skills/tv-pilot/scripts/ensure-tv.sh -v` / `identify-tv.sh` |
 | 档案校验 | `bash .agents/skills/tv-pilot/scripts/device-profile.sh lint` |
 
 提交前至少跑：`make check && make test`。
+
+## 测试分层
+
+改什么就跑对应那层，别只靠人眼：
+
+| 层 | 位置 | 覆盖 | 命令 |
+|---|---|---|---|
+| 离线脚本 | `tests/fake-adb` + `tests/run.sh` | skill 脚本的连接/取数/`--json` 契约 | `make test` |
+| 纯逻辑单元 | `tests/java/`（含最小 Android 桩） | `ReportPeriod` / `ReportMath` / `DayAgg` / `BarStack` / `ChartAxis` / `PlayEntry` 等 | `make test` |
+| 真机冒烟 | `tests/e2e/report-smoke.sh` | 装 APK → 报告页周/月/年导航 → 日志/崩溃/一致性断言 + 截图 | `make e2e` |
+| 全量回归 | `tests/e2e/full-regression.sh` | 首页/今日使用/使用记录/报告/屏保服务 + 归档完整性 | `make regression` |
+
+- 改 `tvhud/` 里的纯计算逻辑：先在 `tests/java/ReportCoreTest` 加用例，再改实现。
+- 改 Canvas 布局：把可算的几何/口径抽成不 import Android 的纯函数（参考 `BarStack` / `ChartAxis`），
+  让单元测试能覆盖；派生数据在 `onReportChanged()` 里算一次，不要放进 `onDraw`；
+  纯视觉部分用 `make e2e` 截图人眼复核。
+- 报告聚合新加了派生量时，同步扩 `ReportMath.checkInvariants`；真机 E2E 会把
+  `REPORT_INVARIANT` 告警当失败。
+- 改动涉及多个页面或存储层时，跑 `make regression`（不只是 `make e2e`）。
+- 详细说明见 `tests/README.md`。
 
 ## 改动边界
 

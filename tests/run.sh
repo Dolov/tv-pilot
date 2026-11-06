@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # 离线测试：用 tests/fake-adb 模拟电视，不需要真设备、不需要 .tools/、不联网。
+# 另含报告核心纯 Java 单元测试（tests/java，javac 不可用时 SKIP）。
 #
 # 运行：bash tests/run.sh   或   make test
 # 退出码：0 全部通过；1 有用例失败；2 环境/前置条件不满足。
@@ -25,11 +26,20 @@ export TV_ADB_TIMEOUT=5
 
 PASS=0
 FAIL=0
+SKIP=0
 FAILED=""
+SKIPPED=""
 
 pass_case() {
   PASS=$((PASS + 1))
   printf 'PASS  %s\n' "$*"
+}
+
+skip_case() {
+  SKIP=$((SKIP + 1))
+  SKIPPED="${SKIPPED}
+  - $1"
+  printf 'SKIP  %s\n' "$*"
 }
 
 fail_case() {
@@ -183,14 +193,39 @@ test_ensure_tv() {
   fi
 }
 
+# ---------- 用例 6：报告核心纯 Java 单元测试 ----------
+# 覆盖 ReportPeriod / ReportMath / DayAgg / BarStack / PlayEntry 等纯逻辑；
+# 需要可用的 javac（优先 PATH，其次 skill 的 .tools JDK），没有就 SKIP 而不是 FAIL。
+test_report_core_java() {
+  local name="报告核心单元测试（tests/java）"
+  local out rc
+  out="$(bash "$ROOT/tests/java/run.sh" 2>&1)"
+  rc=$?
+  case "$rc" in
+    0)
+      pass_case "${name}（$(printf '%s' "$out" | grep -m1 '^用例 PASS' || echo '全部通过')）"
+      ;;
+    2)
+      skip_case "${name}（$(printf '%s' "$out" | head -1)）"
+      ;;
+    *)
+      fail_case "$name" "$(printf '%s' "$out" | tail -5 | tr '\n' ' ' | cut -c1-400)"
+      ;;
+  esac
+}
+
 test_identify
 test_remote_battery
 test_tv_state
 test_apps_inventory
 test_ensure_tv
+test_report_core_java
 
 printf '\n== 汇总 ==\n'
-printf 'PASS %d  FAIL %d\n' "$PASS" "$FAIL"
+printf 'PASS %d  FAIL %d  SKIP %d\n' "$PASS" "$FAIL" "$SKIP"
+if [[ "$SKIP" -gt 0 ]]; then
+  printf '跳过用例（环境不满足）：%s\n' "$SKIPPED"
+fi
 if [[ "$FAIL" -gt 0 ]]; then
   printf '失败用例：%s\n' "$FAILED"
   exit 1
