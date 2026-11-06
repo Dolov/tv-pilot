@@ -1,0 +1,7 @@
+@@MODEL@@
+MiTV-NSOP0
+@@BOND@@
+Bonded devices:
+  [AA:BB:CC:DD:EE:FF] Mi Remote
+@@BATT@@
+bluetooth_hid_battery_AA:BB:CC:DD:EE:FF=85

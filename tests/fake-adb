@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# 离线测试用的假 adb：不连真实设备，按参数返回固定输出。
+#
+# 只实现 tv-pilot 脚本实际消费到的子命令。新增脚本/参数时在这里补 fixture，
+# 不要让它去碰真实 adb 或网络。
+set -uo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FIX="$HERE/fixtures"
+
+# 吃掉 -s <serial> / -H <host> / -P <port>，其余按子命令处理。
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -s)
+      shift
+      [[ $# -gt 0 ]] && shift
+      ;;
+    -H | -P)
+      shift
+      [[ $# -gt 0 ]] && shift
+      ;;
+    -*)
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+cmd="${1:-}"
+[[ $# -gt 0 ]] && shift
+
+case "$cmd" in
+  devices)
+    cat "$FIX/devices.txt"
+    exit 0
+    ;;
+  connect)
+    echo "connected to ${1:-unknown}"
+    exit 0
+    ;;
+  disconnect)
+    echo "disconnected"
+    exit 0
+    ;;
+  start-server | kill-server | wait-for-device)
+    exit 0
+    ;;
+  shell)
+    sh_cmd="$*"
+    # 遥控器电量：脚本用 @@MODEL@@/@@BOND@@/@@BATT@@ 一次往返取回。
+    if [[ "$sh_cmd" == *"@@BATT@@"* ]]; then
+      cat "$FIX/remote-battery-shell.txt"
+      exit 0
+    fi
+    # 电视状态：一次 shell 取 UP/WAKE/SCREEN/FOCUS。
+    if [[ "$sh_cmd" == *"UP="* && "$sh_cmd" == *"WAKE="* ]]; then
+      cat "$FIX/tv-state-shell.txt"
+      exit 0
+    fi
+    # 识别：脚本用 @@MODEL@@ 等 marker 一次取回设备指纹。
+    if [[ "$sh_cmd" == *"@@MODEL@@"* ]]; then
+      cat "$FIX/identify-shell.txt"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"pm list packages"* && "$sh_cmd" == *"-3"* ]]; then
+      sed 's/^/package:/' "$FIX/packages-third.txt"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"pm list packages"* ]]; then
+      sed 's/^/package:/' "$FIX/packages-all.txt"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"resolve-activity"* ]]; then
+      echo "com.mitv.tvhome/com.mitv.tvhome.HomeActivity"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"dumpsys bluetooth_manager"* ]]; then
+      cat "$FIX/bluetooth-manager.txt"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"settings list global"* ]]; then
+      echo "bluetooth_hid_battery_AA:BB:CC:DD:EE:FF=85"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"getprop ro.product.model"* ]]; then
+      echo "MiTV-NSOP0"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"getprop ro.product.brand"* ]]; then
+      echo "xiaomi"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"getprop ro.product.device"* ]]; then
+      echo "furyroad"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"getprop ro.build.version.sdk"* ]]; then
+      echo "28"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"getprop ro.build.fingerprint"* ]]; then
+      echo "Xiaomi/furyroad/furyroad:9/PPR1.180610.011/1365:user/release-keys"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"getprop ro.build.version.incremental"* ]]; then
+      echo "1365"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"dumpsys power"* ]]; then
+      echo "mWakefulness=Awake"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"dumpsys display"* ]]; then
+      echo "mScreenState=ON"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"dumpsys window"* ]]; then
+      echo "mCurrentFocus=Window{abc123 u0 com.mitv.tvhome/com.mitv.tvhome.HomeActivity}"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"dumpsys meminfo"* ]]; then
+      echo "Realtime: 700000"
+      echo "Uptime: 650000"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"cat /proc/uptime"* ]]; then
+      echo "93784.55 700000.00"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"date"* ]]; then
+      echo "Thu Nov  6 20:00:00 CST 2026"
+      exit 0
+    fi
+    if [[ "$sh_cmd" == *"am broadcast"* ]]; then
+      echo "Broadcast completed: result=0"
+      exit 0
+    fi
+    # 未覆盖的只读命令：给空输出，保持退出码 0。
+    exit 0
+    ;;
+  *)
+    exit 0
+    ;;
+esac

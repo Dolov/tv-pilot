@@ -1,0 +1,12 @@
+@@MODEL@@
+MiTV-NSOP0
+@@BRAND@@
+xiaomi
+@@DEVICE@@
+furyroad
+@@SDK@@
+28
+@@FP@@
+Xiaomi/furyroad/furyroad:9/PPR1.180610.011/1365:user/release-keys
+@@HOME@@
+com.mitv.tvhome/com.mitv.tvhome.HomeActivity

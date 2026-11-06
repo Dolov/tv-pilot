@@ -1,0 +1,4 @@
+UP=93784.55
+WAKE=Awake
+SCREEN=ON
+FOCUS=com.mitv.tvhome/com.mitv.tvhome.HomeActivity

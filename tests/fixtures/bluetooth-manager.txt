@@ -1,0 +1,2 @@
+Bonded devices:
+  [AA:BB:CC:DD:EE:FF] Mi Remote

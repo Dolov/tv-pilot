@@ -1,0 +1,5 @@
+com.example.thirdparty
+com.mitv.tvhome
+com.miui.systemAdSolution
+com.xiaomi.mitv.settings
+com.android.providers.settings
