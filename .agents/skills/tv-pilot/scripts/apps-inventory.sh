@@ -3,15 +3,15 @@
 #
 #   apps-inventory.sh list          当前清单（默认只列第三方 + 总数）
 #   apps-inventory.sh list --all    连系统包一起列
-#   apps-inventory.sh diff          和 references/devices/mitv-nsop0-apps.txt 比对（有变化退出码 1）
+#   apps-inventory.sh diff          和 references/devices/xiaomi-mitv-nsop0-apps.txt 比对（有变化退出码 1）
 #   apps-inventory.sh update        用当前状态覆盖快照（会先打印差异）
 #
 # 快照文件格式：  类型<TAB>包名     T=第三方/预装数据分区  S=系统
-# 文档（人看的表格 + 维护约定）：references/devices/mitv-nsop0-apps.md
+# 文档（人看的表格 + 维护约定）：references/devices/xiaomi-mitv-nsop0-apps.md
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SNAP="$SKILL_DIR/references/devices/mitv-nsop0-apps.txt"
+SNAP="$SKILL_DIR/references/devices/xiaomi-mitv-nsop0-apps.txt"
 ADB="bash $SKILL_DIR/scripts/adb.sh"
 
 ensure_tv() {
@@ -105,7 +105,7 @@ cmd_update() {
     printf '%s\n' "$cur"
   } > "$SNAP"
   echo "已写入 $SNAP"
-  echo "记得同步 $(dirname "$SNAP")/mitv-nsop0-apps.md 的表格与快照时间"
+  echo "记得同步 $(dirname "$SNAP")/xiaomi-mitv-nsop0-apps.md 的表格与快照时间"
 }
 
 case "${1:-list}" in

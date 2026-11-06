@@ -1,21 +1,26 @@
 # tv-pilot
 
-用**局域网 ADB** 操作小米 / Redmi 电视（MIUI TV / PatchWall）：免数据线发现设备、只读探测、配置儿童模式与观看时长、清理广告组件、安装第三方 APK、读遥控器电量、统计电视使用时长与观看内容，以及在电视上跑一个自研小 App「**TV HUD**」（屏保右上角角标 + 今日使用台账 + 使用记录）。
+用**局域网 ADB** 操作电视（已实测小米 / Redmi MIUI TV，其它 Android TV 可按设备档案接入）：免数据线发现设备、只读探测、配置儿童模式与观看时长、清理广告组件、安装第三方 APK、读遥控器电量、统计电视使用时长与观看内容，以及在电视上跑一个自研小 App「**TV HUD**」（屏保右上角角标 + 今日使用台账 + 使用记录）。
 
 整套东西由两部分组成：
 
 - **`.agents/skills/tv-pilot/`**：给 AI 编码代理用的 skill（脚本 + 参考文档 + 评测），把「电视运维」的试错经验固化下来，下次不用重新踩坑。
 - **`tvhud/`**：电视上真正运行的小 App（纯 Java + 系统 API，无 Gradle/Android Studio，`build.sh` 直接出 APK）。
 
+已实测机型见 `.agents/skills/tv-pilot/references/devices/README.md`；其它品牌 Android TV 按 `references/porting.md` 接入，欢迎按 `CONTRIBUTING.md` 贡献设备档案。
+
 ## 仓库结构
 
 ```
 tv-pilot/
+├── CONTRIBUTING.md               # 贡献指南：设备档案流程 + 脱敏红线
+├── .github/ISSUE_TEMPLATE/       # 「新增/修正设备档案」issue 模板
 ├── .agents/skills/tv-pilot/      # skill：代理的操作手册与脚本
-│   ├── SKILL.md                  # 入口（三条原则、常见请求 → 一条命令）
+│   ├── SKILL.md                  # 入口（三条原则、设备适配、常见请求 → 一条命令）
 │   ├── .env.example              # 本机敏感配置模板（复制成 .env，不进仓库）
-│   ├── scripts/                  # ensure-tv / probe / usage / remote-battery / app-deploy ...
-│   ├── references/               # 按需读的细节：ADB、儿童模式、去广告、屏保、构建链路
+│   ├── scripts/                  # ensure-tv / identify-tv / probe / usage / device-profile ...
+│   ├── references/               # 通用方法论 + porting.md 接入指南
+│   │   └── devices/              # 设备档案：每型号一份 + 模板 + 支持矩阵
 │   └── evals/                    # 触发与行为评测集
 ├── tvhud/                        # 电视端 App 源码（本项目的"产品"部分）
 │   ├── AndroidManifest.xml
@@ -48,6 +53,7 @@ cp ~/tv-pilot/.agents/skills/tv-pilot/.env.example ~/tv-pilot/.agents/skills/tv-
 ```bash
 cd ~/tv-pilot/.agents/skills/tv-pilot
 bash scripts/ensure-tv.sh -v     # 已有连接 → 缓存 IP → 扫描，输出 <ip>:5555
+bash scripts/identify-tv.sh      # 识别机型 + 匹配设备档案（matched / similar / unknown）
 bash scripts/tv-state.sh         # 开机 / 熄屏待机 / 关机
 bash scripts/probe.sh            # 型号、固件、应用清单、广告候选、儿童模式
 bash scripts/remote-battery.sh   # 遥控器电量
@@ -87,6 +93,13 @@ bash scripts/app-deploy.sh --apk ~/tv-pilot/.build/out/tvhud.apk --overlay --usa
 | `TV_IP` / `TV_PORT` | 电视局域网地址；冷启动时 `ensure-tv.sh` 的第一跳 |
 | `REMOTE_MAC` | 遥控器蓝牙 MAC（可选，便于核对电量键；脚本会自动发现） |
 | `TVPILOT_KS_PASS` | 签名 keystore 密码（可选，默认 `android`） |
+
+## 支持哪些电视 / 怎么贡献新机型
+
+- **已实测机型**：见 `.agents/skills/tv-pilot/references/devices/README.md`（当前：MiTV-NSOP0 / MIUI TV Android 9）。
+- **型号不匹配时**：`identify-tv.sh` 会给出 `similar`（同品牌）或 `unknown`（没档案）。此时只读能力可用，禁包 / 改设置 / 装 App / 做屏保角标需要先验证。
+- **接入一台新电视**：按 `.agents/skills/tv-pilot/references/porting.md` 采集 → `bash scripts/device-profile.sh init` 生成档案 → 填写 → `bash scripts/device-profile.sh lint` 通过 → `index` 重建矩阵 → 提 PR。
+- **App 兼容性**：`tvhud/` 目前以 MIUI TV 为主（屏保悬浮窗、米家日志、ADB 守护），其它品牌的适配程度在设备档案的 `app_build` 能力里标注。
 
 ## 安全与隐私
 

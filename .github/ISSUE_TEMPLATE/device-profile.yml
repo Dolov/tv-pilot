@@ -1,0 +1,64 @@
+name: 新增 / 修正设备档案
+description: 提交一台电视的实测档案（或补充已有档案），先读 references/porting.md 与 CONTRIBUTING.md
+title: "[device] <品牌> <型号>"
+labels: ["device-profile"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请确认：
+        - 已按 `references/porting.md` 采集，并跑过 `bash scripts/device-profile.sh lint`
+        - 只填了**实际测过**的能力，没测的保持 `unknown`
+        - 档案里没有真实 IP / MAC / 序列号 / Wi-Fi 名 / 账号（见 `CONTRIBUTING.md` 脱敏红线）
+  - type: input
+    id: device
+    attributes:
+      label: 设备型号
+      placeholder: 例如 MiTV-NSOP0（`adb shell getprop ro.product.model`）
+    validations:
+      required: true
+  - type: input
+    id: sdk
+    attributes:
+      label: Android 版本 / SDK
+      placeholder: 例如 Android 9 / SDK 28
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: 固件版本
+      placeholder: 例如 22.7.26.1365（`ro.build.display.id`）
+    validations:
+      required: false
+  - type: textarea
+    id: capabilities
+    attributes:
+      label: 实测到的能力
+      description: 哪几项是 verified / partial？哪些还是 unknown？为什么？
+      placeholder: |
+        usage_stats: verified（dumpsys usagestats 可用）
+        screensaver: partial（能识别屏保，但叠字未验证）
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 证据
+      description: 至少 3 条「命令 + 输出摘录 + 日期」；不要贴真实 IP/MAC/序列号/账号
+      placeholder: |
+        $ adb shell getprop ro.build.version.sdk
+        28            # 2026-11-04
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 自检
+      options:
+        - label: 已跑 `bash scripts/device-profile.sh lint` 且通过
+          required: true
+        - label: 档案不含真实 IP/MAC/序列号/Wi-Fi 名/账号
+          required: true
+        - label: 未实测的能力保持 unknown，且写了「怎么测」
+          required: true

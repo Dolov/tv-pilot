@@ -130,7 +130,7 @@
     {
       "id": 11,
       "prompt": "我家电视上现在都装了哪些应用？是不是最近多了什么东西？",
-      "expected_output": "读 references/devices/mitv-nsop0-apps.md 给出当前 109 包快照概况，并跑 scripts/apps-inventory.sh diff 与快照比对，报告新增/卸载的包；不凭记忆列包、不逐个 pm list 拉原始输出。",
+      "expected_output": "读 references/devices/xiaomi-mitv-nsop0-apps.md 给出当前 109 包快照概况，并跑 scripts/apps-inventory.sh diff 与快照比对，报告新增/卸载的包；不凭记忆列包、不逐个 pm list 拉原始输出。",
       "files": [],
       "expectations": [
         "用 apps-inventory.sh diff 做漂移比对，而不是重新全量摸索",
@@ -142,11 +142,11 @@
     {
       "id": 12,
       "prompt": "电视上那个洪恩识字和云视听小电视分别是干嘛的？孩子平时主要用哪个？",
-      "expected_output": "读 references/devices/mitv-nsop0-apps.md，按「能干什么 / 备注 / 家庭使用地图」回答 App 功能与适用人群；不靠包名猜。",
+      "expected_output": "读 references/devices/xiaomi-mitv-nsop0-apps.md，按「能干什么 / 备注」回答 App 功能；不靠包名猜。",
       "files": [],
       "expectations": [
-        "从 apps 文档（功能列 + 家庭使用地图）取信息，而不是凭包名臆测",
-        "说明这些 App 是否受儿童模式时长约束",
+        "从 apps 文档（功能列 + 备注）取信息，而不是凭包名臆测",
+        "说明这些 App 是否受系统时长限制约束",
         "不把原始 pm list 输出整段贴出来"
       ]
     },
@@ -230,6 +230,19 @@
         "刷新间隔改成 60s 左右，不再每秒刷新",
         "刷新重建后焦点和滚动位置不丢",
         "装完有截图验证（合并后行数减少、焦点仍在原行）"
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "我家是台海信（或索尼）Android TV，不是小米，这个 skill 能用吗？能帮我看看它开了哪些应用、有没有广告组件吗？",
+      "expected_output": "先跑 identify-tv.sh 识别并匹配设备档案；未匹配（similar/unknown）时只做只读探测，明确说明哪些能力未验证，禁止禁包/settings put/装 App，并引导按 references/porting.md 接入、可贡献设备档案。",
+      "files": [],
+      "expectations": [
+        "先 identify-tv.sh（或等价只读识别），而不是直接套用小米档案里的命令",
+        "明确区分 matched / similar / unknown，unknown 时只走只读路径",
+        "未验证机型上不执行禁包、settings put、install 等写操作",
+        "指出 references/porting.md 与 scripts/device-profile.sh 的接入/贡献路径",
+        "不把 com.mitv.* / com.xiaomi.* 当成所有 Android TV 的通用事实"
       ]
     }
   ]

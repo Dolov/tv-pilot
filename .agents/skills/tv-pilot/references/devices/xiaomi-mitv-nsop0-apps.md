@@ -2,13 +2,13 @@
 
 > **快照时间**：2026-11-04 21:31　**固件**：`22.7.26.1365`（Android 9）
 > **总数**：109 个包 = 系统 90 + 第三方/预装数据分区 19
-> 机器档案（硬件/坑/开机行为）见 `references/devices/mitv-nsop0.md`。
+> 机器档案（硬件/坑/开机行为）见 `references/devices/xiaomi-mitv-nsop0.md`。
 
 ## 维护：怎么刷新这份清单
 
 ```bash
 bash scripts/apps-inventory.sh diff     # 和本快照比对，列出新增/卸载的包（日常先跑这个）
-bash scripts/apps-inventory.sh update   # 把当前状态写回 references/devices/mitv-nsop0-apps.txt
+bash scripts/apps-inventory.sh update   # 把当前状态写回 references/devices/xiaomi-mitv-nsop0-apps.txt
 bash scripts/apps-inventory.sh list     # 只看当前清单（不比对）
 ```
 
