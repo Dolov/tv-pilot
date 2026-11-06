@@ -39,7 +39,7 @@ scripts/adb.sh shell settings put system child_mode_digital_pwd '你的新密码
 
 > 改完建议重启电视或重新进出儿童模式，让锁屏应用重新读配置。改之前先 `settings get` 记原值。
 
-> **`play_time_today_watchtime` 不是"今天看了多久"**：它只在儿童模式生效时累加；`child_mode_lock_switch=off` 时根本不动（实测一晚采样几次都是同一个值，和电源日志差 3 倍）。要真正的使用时长，走 `references/usage-stats.md`。
+> **`play_time_today_watchtime` 不是"今天看了多久"**：它只在儿童模式生效时累加；`child_mode_lock_switch=off` 时根本不动（实测一晚采样几次都是同一个值，和电源日志差 3 倍）。要真正的使用时长，走 `references/operations/usage-stats.md`。
 
 ## 已知弱点（决定要不要依赖它）
 

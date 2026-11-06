@@ -153,7 +153,7 @@
     {
       "id": 13,
       "prompt": "我想给电视右上角角标再改点东西，重新编译装上去，要注意什么？",
-      "expected_output": "按 references/dev-workflow.md 走：build-tools.sh status 自检 → 改源码 → build.sh → app-deploy.sh（install 后 appops/grant/启动清 stopped/无障碍条目最后写）→ logcat+screencap 验证；说明为什么条目必须最后写。",
+      "expected_output": "按 references/operations/dev-workflow.md 走：build-tools.sh status 自检 → 改源码 → build.sh → app-deploy.sh（install 后 appops/grant/启动清 stopped/无障碍条目最后写）→ logcat+screencap 验证；说明为什么条目必须最后写。",
       "files": [],
       "expectations": [
         "先自检工具链（build-tools.sh status），不重新下载 SDK/Android Studio",

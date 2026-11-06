@@ -88,7 +88,7 @@ adb shell settings put secure accessibility_enabled 1
 （不是所有机型都行）。拿到后 App 可以每 10 秒检查：
 
 - `enabled_accessibility_services` 里自己的条目被删了 → 补回
-- `adb_enabled` 被小米关成 0 → 写回 1（见 `references/enable-adb.md`）
+- `adb_enabled` 被小米关成 0 → 写回 1（见 `references/operations/enable-adb.md`）
 
 ## 方案 B：让系统直接启动你
 

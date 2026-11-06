@@ -2,7 +2,7 @@
 
 适用：悬浮窗/角标、开机自启入口、小工具。本机产物体积 ~74KB。
 本文只讲**怎么搭出能装的 APK**；构建→部署→验证的完整闭环、工具链自检、源码恢复见
-`references/dev-workflow.md`（改电视上已有 App 时优先读那份）。
+`references/operations/dev-workflow.md`（改电视上已有 App 时优先读那份）。
 
 ## 最小结构
 
@@ -55,5 +55,5 @@ apksigner sign --ks "$KS" --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" -
 - 电视是 32 位 `armeabi-v7a` 无所谓：dex 与 CPU 架构无关。
 - 装完要补授权（顺序很重要，直接看 `dev-workflow.md` 的 `app-deploy.sh`）：
   `appops SYSTEM_ALERT_WINDOW` / `appops GET_USAGE_STATS` / `pm grant WRITE_SECURE_SETTINGS`。
-- 开机自启：`references/boot-autostart.md`（无障碍服务入口，`BOOT_COMPLETED` 收不到）。
-- 屏保上叠字：`references/screensaver.md`（含中英混排为什么必须自绘 Canvas）。
+- 开机自启：`references/operations/boot-autostart.md`（无障碍服务入口，`BOOT_COMPLETED` 收不到）。
+- 屏保上叠字：`references/operations/screensaver.md`（含中英混排为什么必须自绘 Canvas）。

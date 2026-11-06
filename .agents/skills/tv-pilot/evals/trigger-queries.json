@@ -1,6 +1,6 @@
 {
   "skill_name": "tv-pilot",
-  "note": "描述触发测试集。真实触发率需 claude CLI（scripts.run_loop）；本环境用手工对照 description 的方式核对覆盖。",
+  "note": "描述触发测试集。把 queries 交给加载本 skill 的代理，对照 SKILL.md 的 description 判断是否触发；自动跑可用任意 LLM CLI，仓库不内置绑定特定工具的脚本。",
   "queries": [
     {
       "query": "电视上右上角那个角标能不能把天气也加上",

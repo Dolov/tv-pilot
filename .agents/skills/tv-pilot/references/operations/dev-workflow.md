@@ -18,7 +18,7 @@ bash scripts/ensure-tv.sh              # 电视连接（<1s，不走全网扫描
 |---|---|
 | 工作区有项目（如 `tvhud/`） | 直接改，`./build.sh` 构建 |
 | 工作区被清空了 | 先 `bash scripts/app-backup.sh restore tvhud <目标目录>` 从 skill 的 `assets/` 恢复；再不行才从电视拉 APK 反编译（见下方「恢复源码」） |
-| 新做一个小工具 | 照 `references/build-mini-apk.md` 的最小结构（manifest + 1~3 个 Java + build.sh） |
+| 新做一个小工具 | 照 `references/operations/build-mini-apk.md` 的最小结构（manifest + 1~3 个 Java + build.sh） |
 
 构建成功后项目会自动同步备份到 `assets/<项目名>/`（`build.sh` 里调用 `app-backup.sh`，
 `TVPILOT_AUTO_BACKUP=0` 可关闭），所以正常情况源码不会真丢。
@@ -61,10 +61,10 @@ bash scripts/app-deploy.sh \
 `pm grant WRITE_SECURE_SETTINGS` → 启动一次清 `stopped` → **最后**写无障碍条目 → 自检并打印回滚命令。
 加 `--dry-run` 可以先看命令不执行。
 
-升级现有 App 同样走 `app-deploy.sh`（`install -r` 保留 prefs/授权/无障碍）。`tv-hud.sh install` 自 2026-11-05 起也是「先 `install -r`，失败才卸载重装」，但卸载会清 `adb_keep`、长条历史、无障碍条目——所以常规升级仍优先用 `app-deploy.sh`。
+升级现有 App 同样走 `app-deploy.sh`（`install -r` 保留 prefs/授权/无障碍）；`tv-hud.sh install` 是它的薄封装。签名不匹配时只能卸载重装，会清 `adb_keep`、长条历史、无障碍条目——所以 keystore 必须固定，常规升级优先用 `app-deploy.sh`。
 
 > 为什么必须这个顺序：`adb install -r` 和 `am force-stop` 都会把该 App 的无障碍条目从
-> `enabled_accessibility_services` 里删掉，写早了等于白写（详见 `references/boot-autostart.md`）。
+> `enabled_accessibility_services` 里删掉，写早了等于白写（详见 `references/operations/boot-autostart.md`）。
 
 ## 4. 验证（别只看日志说"应该行"）
 

@@ -91,9 +91,34 @@ bash scripts/device-profile.sh lint          # 必填字段 + 章节完整 + 证
 bash scripts/device-profile.sh index         # 重建 references/devices/README.md 的支持矩阵
 ```
 
-## 8. 提交
+### 7.1 只想自己用：本地档案覆盖层
 
-- 一个 PR 只加/改一份档案（外加 `index` 生成的矩阵）
+不必改仓库。`device-profile.sh init --local` 会把档案写到 `$TVPILOT_DEVICES_DIR`（默认
+`~/.config/tv-pilot/devices/`），`identify-tv.sh` 会同时扫描仓库档案和本地档案（精确匹配优先），
+`device-profile.sh lint` 两者都校验，`index` 只重建仓库支持矩阵。
+
+```bash
+bash scripts/device-profile.sh init --local --name hisense-a6g
+bash scripts/device-profile.sh lint
+bash scripts/identify-tv.sh --json     # profile_source 应为 local
+```
+
+## 8. 品牌操作差异用 provider 表达
+
+档案是数据（身份、能力、坑），provider 是代码（这台机器该去哪个键取电量、播放日志在哪、
+屏保包名是什么）。通用脚本不写机型 if/else，而是调用 provider 函数：
+
+```bash
+scripts/providers/<slug>.sh      # 实现需要的 tvp_* 函数；缺省回落 _default.sh
+```
+
+契约、函数清单、示例见 `docs/providers.md`。只有确实需要不同命令/解析逻辑时才加 provider；
+纯事实（包名、键名、能力）继续写档案 frontmatter 或正文。
+
+## 9. 提交
+
+- 一个 PR 只加/改一份档案（外加 `index` 生成的矩阵；有 provider 时一并提交）
 - 证据至少 3 条（命令 + 输出摘录 + 日期）
 - 不要提交固件、APK、厂商反编译产物
+- 提交前跑 `make check && make test`
 - 流程与脱敏红线见仓库根 `CONTRIBUTING.md`

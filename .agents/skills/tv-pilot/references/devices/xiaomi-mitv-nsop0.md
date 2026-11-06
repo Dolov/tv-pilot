@@ -54,28 +54,28 @@ capabilities:
 ## ADB 接入与坑
 
 - 开关路径：`设置 → 账号与安全 → 安全 → ADB 调试`；打开后通常要重启电视，5555 才开始监听
-- 重启后 **ADB 延时复位**：前 ~30 秒可用，随后端口 refuse、授权密钥也失效；由自研 App 用 `WRITE_SECURE_SETTINGS` 把 `adb_enabled` 写回（见 `references/boot-autostart.md`）
+- 重启后 **ADB 延时复位**：前 ~30 秒可用，随后端口 refuse、授权密钥也失效；由自研 App 用 `WRITE_SECURE_SETTINGS` 把 `adb_enabled` 写回（见 `references/operations/boot-autostart.md`）
 - 授权框：首次连接在电视上选「允许」，建议勾「一律允许」；`unauthorized` 就重新按一次
 - `pm grant <pkg> android.permission.WRITE_SECURE_SETTINGS` 在本机可用
-- 通用排查顺序见 `references/enable-adb.md` 与 `scripts/ensure-tv.sh -v`
+- 通用排查顺序见 `references/operations/enable-adb.md` 与 `scripts/ensure-tv.sh -v`
 
 ## 桌面与屏保
 
 - 桌面：`com.mitv.tvhome`（PatchWall）；`com.mitv.tvhome.permission.HOME_STATE` 有保护，换桌面不要直接禁它
 - 屏保：`com.mitv.screensaver/.RenderActivity`，8 分钟无操作进入；广播 `com.duokan.intent.action.show.screensaver` / `exit.screensaver`（偶尔要发两次才生效）
-- 屏保上叠字：`SYSTEM_ALERT_WINDOW` 悬浮窗 + `TYPE_APPLICATION_OVERLAY`；屏保检测走 UsageStats 增量查询（细节与坑见 `references/screensaver.md`）
+- 屏保上叠字：`SYSTEM_ALERT_WINDOW` 悬浮窗 + `TYPE_APPLICATION_OVERLAY`；屏保检测走 UsageStats 增量查询（细节与坑见 `references/operations/screensaver.md`）
 
 ## 使用统计来源
 
 - `dumpsys usagestats` 可用：亮屏/熄屏事件 `SCREEN_INTERACTIVE` / `SCREEN_NON_INTERACTIVE`，前台包名与 class 名都有（`com.mitv.tvhome.DetailsActivity` 内嵌播放时播放器不进前台）
-- 播放内容：米家日志 `/sdcard/miio/miothost.txt`（转义 JSON，`video_name` / `ci` / `total_ci` / `total_duration`）与 `MiTVOtService_PW` 日志；口径见 `references/usage-stats.md`
+- 播放内容：米家日志 `/sdcard/miio/miothost.txt`（转义 JSON，`video_name` / `ci` / `total_ci` / `total_duration`）与 `MiTVOtService_PW` 日志；口径见 `references/operations/usage-stats.md`
 - 不要用 `play_time_today_watchtime` 当观看时长（那是儿童模式计时）
 
 ## 儿童模式
 
 - 宿主：`com.xiaomi.mibox.lockscreen` v2.1.1（`.childmode.*` Activity）
 - 配置：`Settings.System` 明文键；实测过儿童模式，时长/密码因家庭而异，不在此记录
-- 弱点：密码明文、答题可找回、到点只靠锁屏 UI 兜底（见 `references/child-mode.md`）
+- 弱点：密码明文、答题可找回、到点只靠锁屏 UI 兜底（见 `references/operations/child-mode.md`）
 
 ## 可禁用包 / 广告组件
 
@@ -86,7 +86,7 @@ capabilities:
 
 ## 已知坑
 
-- 所有第三方应用开机被置 `stopped=true`（实测 18/18），`BOOT_COMPLETED` 收不到 → `references/boot-autostart.md`
+- 所有第三方应用开机被置 `stopped=true`（实测 18/18），`BOOT_COMPLETED` 收不到 → `references/operations/boot-autostart.md`
 - `screen_off_timeout=2147483647`（永不休眠），改儿童模式相关设置时注意别误改
 - 部分系统设置键值明文存密码（`child_mode_digital_pwd`），演示/截图注意打码
 - `adb devices` 偶发 "device not found" 但端口开着：`adb kill-server` 后重连即可

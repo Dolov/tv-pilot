@@ -11,6 +11,7 @@
 #                       会**最后**追加到 enabled_accessibility_services（install 会把它删掉）
 #   --tag <TAG>         装完从 logcat 抓这个 tag 最近几行（自检用）
 #   --dry-run           只打印将执行的命令
+#   --force             跳过设备档案校验（未验证机型默认拒绝写操作，见 require-profile.sh）
 #
 # 为什么要按这个顺序：adb install -r 会移除该 App 的无障碍条目，am force-stop 也会；
 # 所以条目必须最后写，写早了等于白写（详见 references/boot-autostart.md）。
@@ -18,7 +19,7 @@ set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ADB="bash $SKILL_DIR/scripts/adb.sh"
-APK="" PKG="" ACTIVITY="" ACC="" TAG="" OVERLAY=0 USAGE=0 DRY=0
+APK="" PKG="" ACTIVITY="" ACC="" TAG="" OVERLAY=0 USAGE=0 DRY=0 FORCE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,6 +31,7 @@ while [[ $# -gt 0 ]]; do
     --overlay) OVERLAY=1; shift ;;
     --usage) USAGE=1; shift ;;
     --dry-run) DRY=1; shift ;;
+    --force) FORCE=1; shift ;;
     *) echo "未知参数: $1" >&2; exit 1 ;;
   esac
 done
@@ -40,6 +42,11 @@ done
 # 1) 连接（走 ensure-tv 阶梯，不扫网段）
 if [[ $DRY -eq 0 ]]; then
   bash "$SKILL_DIR/scripts/ensure-tv.sh" >/dev/null
+  # 写操作闸门：没有匹配档案的电视默认拒绝安装（--force 显式跳过）。
+  GATE_ARGS=""
+  [[ $FORCE -eq 1 ]] && GATE_ARGS="--force"
+  # 只要求 matched（有档案）；能力级校验需要时由调用方自行跑 require-profile.sh <capability>
+  bash "$SKILL_DIR/scripts/require-profile.sh" $GATE_ARGS
 fi
 
 run() {

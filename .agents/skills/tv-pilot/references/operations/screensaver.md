@@ -126,7 +126,7 @@ wm.addView(view, lp);
 - 看动画/看片时 PatchWall 播放器**不切 Activity**，前台一直是 `com.mitv.tvhome.DetailsActivity`（包名 = 桌面）。只按包名分类会记成 `SYSTEM` 灰蓝 → 长条上「看不到看动画的片段」。
 - 解法：`UsageEvents.Event.getClassName()`——api-28 `android.jar` 里有这个公开方法，**本机 Android 9 实测可用**（拿得到 `DetailsActivity` / `MainActivityUserMode`）；`dumpsys usagestats` 里也带 `class=`，可先用 adb 核对。
 - 实现：`Categories.of(pkg, className)`——包名分类为 SYSTEM、pkg 是 tvhome 时，类名含 `Detail`/`Play`/`Video`/`Theater` → 改记 `VIDEO`；取不到类名退回按包名（老固件安全）。
-- 近似性：详情页停留 ≠ 一定在播片（选集、看简介也算视频粉）。对「孩子看动画」场景够用；要精确播放态见 `references/usage-stats.md` 末尾。
+- 近似性：详情页停留 ≠ 一定在播片（选集、看简介也算视频粉）。对「孩子看动画」场景够用；要精确播放态见 `references/operations/usage-stats.md` 末尾。
 
 **坑**
 
@@ -135,7 +135,7 @@ wm.addView(view, lp);
 - **服务重启首轮 tick 不能直接 append**：`lastTickWall == 0` 时没有「上一个时间点」，直接累计会把 `00:00 → 现在` 记成一整段。首轮只记时间戳，空档交给 `backfillToday()`。
 - **App 没开 `debuggable`**：`run-as com.dsh.tvhud` 读不到 `shared_prefs/hud.xml`，想核对长条数据只能看日志（`TVHUD` tag）+ 截图取色，别在 `run-as` 上耗时间。
 - **部署后第一次 `show.screensaver` 可能不 attach**（实测延迟约 1 分钟）：`exit.screensaver` → `show.screensaver` 再来一次，`logcat -d | grep TVHUD` 看到 `HUD attached` 即可。
-- **升级用 `app-deploy.sh`**（`install -r` 保数据，最稳）；`tv-hud.sh install` 已改成增量优先（2026-11-05），只有签名不匹配时才卸载重装——卸载会清 prefs/无障碍/授权。
+- **升级用 `app-deploy.sh`**（`install -r` 保数据，最稳）；`tv-hud.sh install` 只是它的薄封装。签名不匹配时安装会失败，需要先卸载再装——卸载会清 prefs/无障碍/授权，尽量别走到这一步。
 
 ## 首页菜单：App 启动页（v1.9 起）
 

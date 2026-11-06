@@ -19,3 +19,6 @@
 # ---- 专有字体：不公开分发。本地保留同名文件即可参与构建，缺失时回退系统字体 ----
 tvhud/assets/DINPro_Medium.otf
 tvhud/assets/MIUI_EX_Light.ttf
+
+# ---- 本机事实（setup.sh 生成：当前电视型号/档案/App 版本；不进仓库）----
+.agents/skills/tv-pilot/references/local.md
