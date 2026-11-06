@@ -197,13 +197,13 @@ test_ensure_tv() {
 # 覆盖 ReportPeriod / ReportMath / DayAgg / BarStack / PlayEntry 等纯逻辑；
 # 需要可用的 javac（优先 PATH，其次 skill 的 .tools JDK），没有就 SKIP 而不是 FAIL。
 test_report_core_java() {
-  local name="报告核心单元测试（tests/java）"
+  local name="核心单元测试（tests/java）"
   local out rc
   out="$(bash "$ROOT/tests/java/run.sh" 2>&1)"
   rc=$?
   case "$rc" in
     0)
-      pass_case "${name}（$(printf '%s' "$out" | grep -m1 '^用例 PASS' || echo '全部通过')）"
+      pass_case "${name}（$(printf '%s' "$out" | grep '^用例 PASS' | tr '\n' ' ' || echo '全部通过')）"
       ;;
     2)
       skip_case "${name}（$(printf '%s' "$out" | head -1)）"

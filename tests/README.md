@@ -5,7 +5,7 @@
 | 层 | 目录 | 覆盖 | 命令 |
 |---|---|---|---|
 | 离线脚本 | `tests/fake-adb` + `tests/run.sh` | skill 脚本的连接阶梯、识别、取数、`--json` 契约 | `make test` |
-| 纯逻辑单元 | `tests/java/` + `tests/java/stubs/` | TV HUD 里不依赖 Android 的逻辑：周期边界、日汇总、聚合、洞察、百分比、片名解析、堆叠柱几何 | `make test` |
+| 纯逻辑单元 | `tests/java/` + `tests/java/stubs/` | TV HUD 里不依赖 Android 的逻辑：报告周期/聚合/洞察/几何 + 宠物等级/照顾/场次预算/题库 | `make test` |
 | 真机冒烟 | `tests/e2e/report-smoke.sh` | 装 APK → 打开报告 → 周/月/年导航 → 日志/崩溃/一致性断言 + 截图 | `make e2e` |
 | 全量真机回归 | `tests/e2e/full-regression.sh` | 首页 / 今日使用 / 使用记录 / 报告三页 / 屏保服务 + 归档完整性 | `make regression` |
 
@@ -34,13 +34,13 @@ tests/
 
 TV HUD 是「无 Gradle、直接 javac」的纯 Java 应用，没有 JUnit 基础设施。这里用
 `tests/java/stubs/` 下最小的 `android.content.*` / `org.json.JSONArray` 桩，把纯数据/纯计算类
-编出来，再用自带断言框架的 `ReportCoreTest` 跑用例：
+编出来，再用自带断言框架的 `ReportCoreTest` / `PetCoreTest` 跑用例：
 
 ```text
 tests/java/
 ├── run.sh                       # 编译 + 运行（PATH 里没有可用 javac 时回退 skill 的 .tools JDK）
 ├── stubs/                       # 只为编译通过的最小 Android/JSON 桩，不会被真的调用
-└── src/                         # 用例源码（package com.dsh.tvhud，入口 ReportCoreTest）
+└── src/                         # 用例源码（package com.dsh.tvhud，入口 ReportCoreTest / PetCoreTest）
 ```
 
 覆盖：`ReportPeriod`（周/月/年边界、ISO 周序号、跨年标签）、`DayAgg`（跨小时切分、裁剪、主类别）、
@@ -49,7 +49,7 @@ tests/java/
 `ChartAxis`（纵轴档位与轴高）、`UsageDay.snapshot`（跨线程快照）、`HistoryStore`（旧归档缺省 scheme 3、
 播放记录越界自检）。
 
-**加用例**：在 `ReportCoreTest` 里加一个 `runCase(...)`；测新逻辑时先把它写成不 import Android
+**加用例**：在对应 `ReportCoreTest` / `PetCoreTest` 里加一个 `runCase(...)`；测新逻辑时先把它写成不 import Android
 的纯函数（参考 `BarStack`、`ReportMath`），否则离线测试编不过。`javac` 不可用时整层 SKIP，
 不影响 `make test` 通过。
 

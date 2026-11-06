@@ -68,6 +68,10 @@ SOURCES=(
   "$APP_SRC/ArchivePolicy.java"
   "$APP_SRC/ArchiveBackfill.java"
   "$APP_SRC/HistoryStore.java"
+  "$APP_SRC/PetState.java"
+  "$APP_SRC/PetEngine.java"
+  "$APP_SRC/Budget.java"
+  "$APP_SRC/QuizBank.java"
 )
 
 # 用数组收集桩文件：路径带空格也不会被拆开（macOS bash 3.2 也支持）
@@ -79,7 +83,8 @@ done < <(find "$HERE/stubs" -name '*.java')
 "$JAVAC" -encoding UTF-8 -d "$OUT" \
   "${STUBS[@]}" \
   "${SOURCES[@]}" \
-  "$HERE/src/com/dsh/tvhud/ReportCoreTest.java" 2>"$TMP/javac.err"
+  "$HERE/src/com/dsh/tvhud/ReportCoreTest.java" \
+  "$HERE/src/com/dsh/tvhud/PetCoreTest.java" 2>"$TMP/javac.err"
 if [[ $? -ne 0 ]]; then
   echo "FAIL 单元测试编译失败：" >&2
   sed 's/^/      /' "$TMP/javac.err" >&2
@@ -87,4 +92,5 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # 固定时区，和电视一致（报告按本地时区做日界运算）
-"$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.ReportCoreTest
+"$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.ReportCoreTest || exit 1
+"$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.PetCoreTest

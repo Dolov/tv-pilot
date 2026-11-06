@@ -1,17 +1,35 @@
 # TV HUD（`com.dsh.tvhud`）
 
-跑在电视上的小 App：屏保右上角角标 + 今日使用台账 + 使用记录 + 周/月/年使用报告。纯 Java + 系统 API，没有 Gradle / Android Studio，`build.sh` 直接出 APK。
+跑在电视上的小 App：屏保右上角角标 + 今日使用台账 + 使用记录 + 周/月/年使用报告 +
+电子宠物「小电视兽」。纯 Java + 系统 API，没有 Gradle / Android Studio，`build.sh` 直接出 APK。
+
+## 电子宠物（P0）
+
+- 打开电视看视频时，`HudService` 按 `Categories.VIDEO` 累计场次：15 分钟一场、每天 3 场；
+  剩 3 分钟 / 1 分钟弹右上角气泡，到点由 `PetGateActivity` 全屏拦截。
+- 两个出口：休息（+3 星、记 1 场）或答 3 题对 2 题（本场 +5 分钟，每天最多 2 次，
+  3 场用完不再出题）。
+- 宠物房间：吃饭/喝水/摸摸/洗澡/刷牙，体重 0–100 影响体型，牙齿 0–100 影响表情，
+  Lv 10 换牙；Lv 3/10/24 解锁帽子/衣服/翅膀；Lv 3/10/24/45 进化。
+- 调试广播（`adb shell am broadcast -a com.dsh.tvhud.PET_...`）：
+  `PET_GATE` 强制到点、`PET_NEAR_END --ei seconds 180` 模拟剩 3 分钟、
+  `PET_DEBUG --ei exp 100 --ei stars 40` 改数值、`PET_PARENT_ON/OFF` 家长时间、
+  `PET_RESET` 重置、`PET_SETTINGS` 打开家长设置。
 
 ## 页面与组件
 
 | 组件 | 作用 |
 |---|---|
-| `HomeActivity` | 启动页菜单：今日使用 / 使用记录 / 使用报告 / AI 语音助手（占位）/ 设置（占位）。加功能改 `ITEMS` |
+| `HomeActivity` | 启动页菜单：今日使用 / 使用记录 / 使用报告 / 我的宠物 / AI 语音助手（占位）/ 设置（占位）。加功能改 `ITEMS` |
 | `MainActivity` | 台账详情：合计、分类图例、0:00→24:00 时间轴、明细；每分钟刷新，保持焦点与滚动 |
 | `ReportsActivity` | 使用报告：周报 / 月报 / 年报三套 Canvas 布局；←→ 回看、↑↓ 切粒度、OK 回本期；长按只认第一下，加载中保留上一帧，失败按 OK 重试 |
 | `ReportEngine` / `ReportMath` / `DayAgg` / `Report` | 365 天归档聚合、上期对比、周期条与洞察；后台线程取快照聚合，纯计算与 Android 读取分层 |
 | `ChartAxis` / `BarStack` | 纵轴刻度与堆叠柱几何（周/月/年共用，纯函数，`tests/java` 覆盖） |
-| `HudService` | 唯一业务服务：1s 采样使用状态、屏保时挂悬浮窗、按天归档、ADB/无障碍自愈 |
+| `PetActivity` | 宠物房间：2.5D 宠物 + 吃饭/喝水/摸摸/洗澡/刷牙 + 换装 + 等级/星星 |
+| `PetGateActivity` | 场次到点拦截：休息 / 答 3 题续 5 分钟；60 秒默认休息；返回键无效 |
+| `PetSettingsActivity` | 家长设置：4 位 PIN（默认 2580）+ 每场时长 / 场次 / 答题续时 / 家长时间 / 重置 |
+| `PetView` / `PetState` / `PetEngine` / `Budget` / `QuizBank` / `PetStore` / `PetBubble` | 2.5D 骨骼渲染、纯逻辑、场次预算、题库、存档、观看中预警气泡 |
+| `HudService` | 唯一业务服务：1s 采样使用状态、屏保时挂悬浮窗、按天归档、ADB/无障碍自愈；宠物场次计时/预警/拦截也在这里 |
 | `HudView` | 自绘角标：开机状态 / 遥控器电量 / 今日使用长条（无文字，颜色即图例） |
 | `UsageDay` | 当天分段模型（`[start,end)` + 类别），落盘 `SharedPreferences("hud")` |
 | `HistoryStore` | 按天归档到 `files/history/yyyy-MM-dd.json`，保留 365 天；带 `v` 分类版本号 |
@@ -22,6 +40,7 @@
 ## 数据在哪
 
 - 当天：`SharedPreferences("hud")` 的 `usage_day_start` / `usage_scheme` / `usage_json` / `play_day_start` / `play_json` / `adb_keep` / `usage_preview`
+- 宠物：`SharedPreferences("pet")`（状态 / 场次预算 / 家长设置）；题库 `assets/quiz.json`
 - 历史：`/sdcard/Android/data/com.dsh.tvhud/files/history/yyyy-MM-dd.json`（adb 可读，卸载即清）
 - 播放内容唯一可靠来源：`/sdcard/miio/miothost.txt`（会轮转，必须运行时就抓）
 

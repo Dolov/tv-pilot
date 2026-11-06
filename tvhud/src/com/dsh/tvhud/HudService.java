@@ -78,6 +78,16 @@ public class HudService extends Service {
     private boolean bootstrapped = false;
     private boolean previewMode = false;
 
+    // 宠物：场次预算 + 状态 + 预警气泡
+    private PetState petState;
+    private Budget petBudget;
+    private PetBubble petBubble;
+    private boolean petBubbleAttached;
+    private long lastPetGateAt = 0L;
+    private int petGateLaunches = 0;
+    private int petWarnLevel = 0;
+    private long petVersion = 0L;
+
     // ---- 落盘节流（减少 NAND 写放大）----
     /** 归档最小间隔：统一用 {@link ArchivePolicy#DEFAULT_INTERVAL_MS}，别在这里再写一份。 */
     private static final long ARCHIVE_INTERVAL_MS = ArchivePolicy.DEFAULT_INTERVAL_MS;
@@ -102,7 +112,11 @@ public class HudService extends Service {
         @Override
         public void run() {
             boolean screensaverOnTop = screensaverOnTop();
+            if (petBudget != null) {
+                petBudget.parentMode = PetStore.parentMode(HudService.this);
+            }
             sampleUsage();
+            petTick();
             if (!bootstrapped) {
                 bootstrapped = true;
                 backfillToday();
@@ -149,6 +163,12 @@ public class HudService extends Service {
         power = (PowerManager) getSystemService(POWER_SERVICE);
         adbKeep = getSharedPreferences("hud", 0).getBoolean("adb_keep", false);
         previewMode = getSharedPreferences("hud", 0).getBoolean("usage_preview", false);
+        petState = PetStore.loadState(this);
+        petBudget = PetStore.loadBudget(this);
+        PetStore.ensureDay(this, petState, petBudget);
+        PetEngine.settle(petState, System.currentTimeMillis());
+        PetStore.save(this, petState, petBudget);
+        petVersion = PetStore.version();
         backfillPendingArchive();
         usage = UsageDay.load(this, UsageDay.dayStartOf(System.currentTimeMillis()));
         sUsage = usage;
@@ -226,7 +246,14 @@ public class HudService extends Service {
                 // 否则不同颜色交界处会留下 1~2px 的空白。
                 replayEvents(lastTickWall, wall);
             } else if (using) {
-                usage.append(lastTickWall, wall, Categories.of(lastTop, lastClass));
+                int cat = Categories.of(lastTop, lastClass);
+                usage.append(lastTickWall, wall, cat);
+                if (cat == Categories.VIDEO && petBudget != null) {
+                    petBudget.onVideo(wall - lastTickWall);
+                    if (petBudget.gateOpen) {
+                        PetStore.saveBudget(this, petBudget);
+                    }
+                }
             }
             if (!using && lastUsing) {
                 // 电视不看了：此刻强制落盘（既是自然节流点，也保证此刻的数据不丢）
@@ -858,6 +885,11 @@ public class HudService extends Service {
             archiveToday(true);
             Log.i(TAG, "plays reloaded: " + plays.size());
         }
+        if (intent != null && intent.getBooleanExtra("pet_reload", false)) {
+            petState = PetStore.loadState(this);
+            petBudget = PetStore.loadBudget(this);
+            petVersion = PetStore.version();
+        }
         if (intent != null && intent.getBooleanExtra("archive_now", false)) {
             boolean wrote = archiveToday(true);
             Log.i(TAG, "archive_now " + (wrote ? "written" : "skipped") + ": "
@@ -887,6 +919,109 @@ public class HudService extends Service {
         } catch (Throwable t) {
             Log.w(TAG, "resetUsage failed: " + t);
         }
+    }
+
+    // ---------- 宠物：场次 / 预警 / 拦截 ----------
+
+    private void petTick() {
+        if (petBudget == null || petState == null) {
+            return;
+        }
+        if (PetStore.version() != petVersion) {
+            petState = PetStore.loadState(this);
+            petBudget = PetStore.loadBudget(this);
+            petVersion = PetStore.version();
+            petWarnLevel = 0;
+        }
+        long today = UsageDay.dayStartOf(System.currentTimeMillis());
+        if (petBudget.dayStart != today) {
+            PetStore.ensureDay(this, petState, petBudget);
+            petVersion = PetStore.version();
+        }
+        petBudget.parentMode = PetStore.parentMode(this);
+
+        if (petBudget.gateOpen) {
+            hidePetBubble();
+            long elapsed = SystemClock.elapsedRealtime();
+            if (elapsed - lastPetGateAt > 5000L && petGateLaunches < 12) {
+                launchPetGate();
+            }
+            return;
+        }
+        petGateLaunches = 0;
+
+        int warn = petBudget.warnLevel();
+        if (warn > 0 && isUsing() && warn != petWarnLevel) {
+            showPetBubble(warn);
+        } else if (warn == 0 || !isUsing()) {
+            if (petWarnLevel != 0) {
+                hidePetBubble();
+            }
+            petWarnLevel = 0;
+        }
+        if (tickCount % 30 == 0) {
+            PetStore.saveBudget(this, petBudget);
+        }
+    }
+
+    private void launchPetGate() {
+        if (PetGateActivity.isBlocking()) {
+            return;
+        }
+        lastPetGateAt = SystemClock.elapsedRealtime();
+        petGateLaunches++;
+        try {
+            Intent i = new Intent(this, PetGateActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(i);
+            Log.i(TAG, "pet gate launched #" + petGateLaunches);
+        } catch (Throwable t) {
+            Log.w(TAG, "pet gate launch failed: " + t);
+        }
+    }
+
+    private void showPetBubble(int level) {
+        petWarnLevel = level;
+        if (petBudget.gateOpen) {
+            return;
+        }
+        try {
+            if (petBubble == null) {
+                petBubble = new PetBubble(this);
+            }
+            petBubble.setMessage(level == 2
+                            ? "还有 1 分钟，看完就休息"
+                            : "还有 3 分钟，快结束啦",
+                    petState == null ? 70 : petState.mood);
+            if (!petBubbleAttached) {
+                WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        2003, // TYPE_SYSTEM_ALERT
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                        android.graphics.PixelFormat.TRANSLUCENT);
+                lp.gravity = Gravity.TOP | Gravity.RIGHT;
+                lp.x = (int) (getResources().getDisplayMetrics().density * 36.0f);
+                lp.y = (int) (getResources().getDisplayMetrics().density * 150.0f);
+                wm.addView(petBubble, lp);
+                petBubbleAttached = true;
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "pet bubble failed: " + t);
+        }
+    }
+
+    private void hidePetBubble() {
+        if (petBubble != null && petBubbleAttached) {
+            try {
+                wm.removeView(petBubble);
+            } catch (Throwable ignored) {
+            }
+        }
+        petBubbleAttached = false;
+        petWarnLevel = 0;
     }
 
     private void attach() {
@@ -933,6 +1068,10 @@ public class HudService extends Service {
         }
         saveUsage(true);
         archiveToday(true);
+        if (petState != null && petBudget != null) {
+            PetStore.save(this, petState, petBudget);
+        }
+        hidePetBubble();
         sUsage = null;
         sPlays = null;
         super.onDestroy();

@@ -77,6 +77,7 @@ UsageStatsManager.queryEvents（增量，1s）
 | 新脚本 | `scripts/`，加进 `SKILL.md` 操作索引与 `README.md` 命令表 | 把本机 IP/型号写死 |
 | 新的机器（本机事实） | 重跑 `scripts/setup.sh` | 改 SKILL.md |
 | App 内新页面 | `HomeActivity.ITEMS` + `open()` 分发 | 直接改 `MainActivity` 启动逻辑 |
+| 电子宠物玩法/外观 | `PetEngine` / `Budget` / `PetView` / `QuizBank`（纯逻辑先加 `tests/java/PetCoreTest`） | 把场次/进化逻辑写进 Activity 或 HudService |
 | 报告页/聚合 | `ReportsActivity` + `ReportEngine/ReportMath` | 在 View 里另读文件 / 在 onDraw 里重算派生数据 |
 
 ## 不变量（改代码时保持）

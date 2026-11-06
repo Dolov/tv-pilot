@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.dsh.tvhud"
-    android:versionCode="14"
-    android:versionName="1.13">
+    android:versionCode="15"
+    android:versionName="1.14">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="22" />
 
@@ -47,6 +47,24 @@
             android:launchMode="singleTop"
             android:exported="false" />
 
+        <!-- 电子宠物：宠物房间 / 到点拦截 / 家长设置 -->
+        <activity
+            android:name="com.dsh.tvhud.PetActivity"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:launchMode="singleTop"
+            android:exported="false" />
+        <activity
+            android:name="com.dsh.tvhud.PetGateActivity"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:exported="false" />
+        <activity
+            android:name="com.dsh.tvhud.PetSettingsActivity"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:launchMode="singleTop"
+            android:exported="false" />
+
         <service
             android:name="com.dsh.tvhud.HudService"
             android:exported="false" />
@@ -73,6 +91,14 @@
                 <action android:name="com.dsh.tvhud.RESET_USAGE" />
                 <action android:name="com.dsh.tvhud.RELOAD_PLAYS" />
                 <action android:name="com.dsh.tvhud.ARCHIVE_NOW" />
+                <action android:name="com.dsh.tvhud.PET_RESET" />
+                <action android:name="com.dsh.tvhud.PET_RELOAD" />
+                <action android:name="com.dsh.tvhud.PET_GATE" />
+                <action android:name="com.dsh.tvhud.PET_SETTINGS" />
+                <action android:name="com.dsh.tvhud.PET_NEAR_END" />
+                <action android:name="com.dsh.tvhud.PET_DEBUG" />
+                <action android:name="com.dsh.tvhud.PET_PARENT_ON" />
+                <action android:name="com.dsh.tvhud.PET_PARENT_OFF" />
             </intent-filter>
         </receiver>
 
