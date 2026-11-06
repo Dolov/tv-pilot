@@ -78,6 +78,23 @@ public class HudService extends Service {
     private boolean bootstrapped = false;
     private boolean previewMode = false;
 
+    // ---- 落盘节流（减少 NAND 写放大）----
+    /** 归档最小间隔：统一用 {@link ArchivePolicy#DEFAULT_INTERVAL_MS}，别在这里再写一份。 */
+    private static final long ARCHIVE_INTERVAL_MS = ArchivePolicy.DEFAULT_INTERVAL_MS;
+    /** 上次写归档的时刻。 */
+    private long lastArchiveMs = 0L;
+    /** 上次写归档时的 usage 版本号（不一致 = 数据变了）。 */
+    private long archivedUsageRev = -1L;
+    /** 上次写归档时的播放记录版本号。 */
+    private long archivedPlaysRev = -1L;
+    /** 上次写 SharedPreferences 时的 usage 版本号 / 日期（一致 = 数据没变，不必再写）。 */
+    private long savedUsageRev = -1L;
+    private long savedUsageDay = 0L;
+    /** 播放记录版本号：每次新增播放上报 +1。 */
+    private long playsRev = 0L;
+    /** 统计用：本次运行累计写归档次数。 */
+    private int archiveWrites = 0;
+
     private final UsageEvents.Event event = new UsageEvents.Event();
     private final Handler handler = new Handler();
 
@@ -98,10 +115,11 @@ public class HudService extends Service {
             if (attached) {
                 render();
             }
+            tickCount++;
             if (tickCount % 5 == 0) {
                 samplePlayLog();
             }
-            if (++tickCount % 10 == 0) {
+            if (tickCount % 10 == 0) {
                 keepAdbOn();
                 ensureAccessibilityEntry();
                 updateBattery();
@@ -109,10 +127,15 @@ public class HudService extends Service {
                     render();
                 }
             }
-            // 每 60 秒落盘一次；切换空闲/销毁时也会立即落盘，重启最多丢 60 秒
+            // SharedPreferences 每 60 秒落盘一次（文件小、写入便宜，且是「今天」数据的
+            // 二级来源，崩溃最多丢 60 秒）；切换空闲/销毁时也会立即落盘。
             if (tickCount % 60 == 0) {
-                saveUsage();
-                archiveToday();
+                saveUsage(false);
+            }
+            // 归档文件改成「节流 + 变了才写」：默认 5 分钟一次，避免一天 1440 次
+            // 全量重写同一份 JSON 磨损 NAND。跨天/空闲/销毁等时机仍然强制写。
+            if (tickCount % 5 == 0) {
+                archiveToday(false);
             }
             handler.postDelayed(this, 1000L);
         }
@@ -126,13 +149,14 @@ public class HudService extends Service {
         power = (PowerManager) getSystemService(POWER_SERVICE);
         adbKeep = getSharedPreferences("hud", 0).getBoolean("adb_keep", false);
         previewMode = getSharedPreferences("hud", 0).getBoolean("usage_preview", false);
+        backfillPendingArchive();
         usage = UsageDay.load(this, UsageDay.dayStartOf(System.currentTimeMillis()));
         sUsage = usage;
         loadPlays();
         readMiio(true);
         importSeed();
         HistoryStore.cleanup(this);
-        archiveToday();
+        archiveToday(true);
         handler.post(ticker);
     }
 
@@ -153,9 +177,18 @@ public class HudService extends Service {
         }
     }
 
-    /** 给同进程的详情页用：内存里的今日分段（服务没起来时为 null，调用方回落读 prefs）。 */
+    /** 给同进程的详情页用（主线程）：内存里的今日分段，调用方不要跨线程持有。 */
     static UsageDay peekUsage() {
         return sUsage;
+    }
+
+    /**
+     * 给报告页后台线程用：今日分段的深拷贝。
+     * 直接读 {@link #peekUsage()} 会跟主线程每秒 append 抢同一个 ArrayList。
+     */
+    static UsageDay peekUsageSnapshot() {
+        UsageDay u = sUsage;
+        return u == null ? null : u.snapshot();
     }
 
     private void sampleUsage() {
@@ -165,10 +198,20 @@ public class HudService extends Service {
             if (usage == null) {
                 usage = UsageDay.load(this, dayStart);
             } else if (usage.dayStart != dayStart) {
-                HistoryStore.write(this, usage.dayStart, usage.segments(), plays);
-                saveUsage();
+                // 跨天：把昨天定稿（强制写，不受节流限制），这是历史数据的唯一来源
+                if (HistoryStore.write(this, usage.dayStart, usage.segments(), plays)) {
+                    archivedUsageRev = usage.revision();
+                    archivedPlaysRev = playsRev;
+                    lastArchiveMs = System.currentTimeMillis();
+                    archiveWrites++;
+                    Log.i(TAG, "archive written (day rollover) "
+                            + HistoryStore.fileFor(this, usage.dayStart).getName()
+                            + " writes=" + archiveWrites);
+                }
+                saveUsage(true);
                 usage = new UsageDay(dayStart);
                 sUsage = usage;
+                archivedUsageRev = usage.revision();
             }
             long nowElapsed = SystemClock.elapsedRealtime();
             // 只有 tick 连续（interval ≤2.5s）才累计；待机/进程被杀留下的空档不算
@@ -186,7 +229,9 @@ public class HudService extends Service {
                 usage.append(lastTickWall, wall, Categories.of(lastTop, lastClass));
             }
             if (!using && lastUsing) {
-                saveUsage();
+                // 电视不看了：此刻强制落盘（既是自然节流点，也保证此刻的数据不丢）
+                saveUsage(true);
+                archiveToday(true);
             }
             lastUsing = using;
             lastTickWall = wall;
@@ -196,11 +241,24 @@ public class HudService extends Service {
         }
     }
 
-    private void saveUsage() {
+    /**
+     * 当天数据落 SharedPreferences。
+     *
+     * @param force true = 强制写（跨天 / 切空闲 / 销毁 / 重置）；
+     *              false = 数据跟上次写盘一致就跳过（电视开着没人看时一天 0 次写）。
+     */
+    private void saveUsage(boolean force) {
         try {
-            if (usage != null) {
-                usage.save(this);
+            if (usage == null) {
+                return;
             }
+            if (!force && usage.dayStart == savedUsageDay
+                    && usage.revision() == savedUsageRev) {
+                return;
+            }
+            usage.save(this);
+            savedUsageDay = usage.dayStart;
+            savedUsageRev = usage.revision();
         } catch (Throwable ignored) {
         }
     }
@@ -220,7 +278,7 @@ public class HudService extends Service {
             return;
         }
         replayEvents(from, now);
-        usage.save(this);
+        saveUsage(true);
         StringBuilder cats = new StringBuilder();
         for (UsageDay.Seg sg : usage.segments()) {
             cats.append(sg.cat).append(',');
@@ -297,14 +355,37 @@ public class HudService extends Service {
         }
     }
 
-    /** 把当天的使用分段 + 播放记录写到按天归档文件。 */
-    private void archiveToday() {
+    /**
+     * 把当天的使用分段 + 播放记录写到按天归档文件。
+     *
+     * @param force true = 强制写（跨天定稿 / 空闲 / 销毁 / 手动触发）；
+     *              false = 节流写：距上次写不足 5 分钟、或数据与上次写盘完全一致时跳过。
+     */
+    private boolean archiveToday(boolean force) {
         try {
-            if (usage != null && usage.dayStart > 0L) {
-                HistoryStore.write(this, usage.dayStart, usage.segments(), plays);
+            if (usage == null || usage.dayStart <= 0L) {
+                return false;
             }
+            long now = System.currentTimeMillis();
+            boolean changed = usage.revision() != archivedUsageRev || playsRev != archivedPlaysRev;
+            if (!ArchivePolicy.shouldWrite(force, changed, now, lastArchiveMs,
+                    ARCHIVE_INTERVAL_MS)) {
+                return false;   // 数据没变，或距上次写不足 5 分钟
+            }
+            if (!HistoryStore.write(this, usage.dayStart, usage.segments(), plays)) {
+                // 当天还没有数据 / 磁盘失败：不要更新节流时间，否则下一份数据要等 5 分钟
+                return false;
+            }
+            archivedUsageRev = usage.revision();
+            archivedPlaysRev = playsRev;
+            lastArchiveMs = now;
+            archiveWrites++;
+            Log.i(TAG, "archive written " + HistoryStore.fileFor(this, usage.dayStart).getName()
+                    + " writes=" + archiveWrites);
+            return true;
         } catch (Throwable t) {
             Log.w(TAG, "archiveToday failed: " + t);
+            return false;
         }
     }
 
@@ -321,7 +402,25 @@ public class HudService extends Service {
                 publishPlays();
                 return;
             }
-            JSONArray arr = new JSONArray(sp.getString("play_json", "[]"));
+            for (PlayEntry e : parsePlays(sp.getString("play_json", "[]"))) {
+                if (playKeys.add(e.key())) {
+                    plays.add(e);
+                }
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "loadPlays failed: " + t);
+        }
+        publishPlays();
+    }
+
+    /** 解析 prefs 里的 play_json；解析不出来就当没有（不抛异常打断采样）。 */
+    private static ArrayList<PlayEntry> parsePlays(String json) {
+        ArrayList<PlayEntry> out = new ArrayList<>();
+        try {
+            if (json == null || json.isEmpty()) {
+                return out;
+            }
+            JSONArray arr = new JSONArray(json);
             for (int i = 0; i < arr.length(); i++) {
                 JSONArray a = arr.getJSONArray(i);
                 PlayEntry e = new PlayEntry();
@@ -331,14 +430,64 @@ public class HudService extends Service {
                 e.ci = a.getInt(3);
                 e.totalCi = a.getInt(4);
                 e.durMs = a.getLong(5);
-                if (playKeys.add(e.key())) {
-                    plays.add(e);
+                out.add(e);
+            }
+        } catch (Throwable ignored) {
+        }
+        return out;
+    }
+
+    /**
+     * 启动补写：电视关机跨天（或进程被强杀）时，Service 可能没跑到「跨天定稿」那一步，
+     * 归档里就少了那一天。SharedPreferences 只留最近一天，此刻正好还留着那天的数据，
+     * 这里补写回归档——否则归档节流到 5 分钟后，硬杀最多丢 5 分钟，
+     * 补写能把「prefs 里的 60 秒精度」补回归档。
+     *
+     * 归档比待补的数据更全时以归档为准；播放记录按「片名+集号」取并集。
+     */
+    private void backfillPendingArchive() {
+        try {
+            long today = UsageDay.dayStartOf(System.currentTimeMillis());
+            android.content.SharedPreferences sp = getSharedPreferences("hud", 0);
+            long usageDay = sp.getLong("usage_day_start", 0L);
+            long playDay = sp.getLong("play_day_start", 0L);
+
+            ArrayList<Long> pending = new ArrayList<>();
+            if (usageDay > 0L && usageDay < today) {
+                pending.add(usageDay);
+            }
+            if (playDay > 0L && playDay < today && !pending.contains(playDay)) {
+                pending.add(playDay);
+            }
+            for (int i = 0; i < pending.size(); i++) {
+                long day = pending.get(i);
+                List<UsageDay.Seg> segs = new ArrayList<>();
+                if (usageDay == day) {
+                    UsageDay u = UsageDay.load(this, day);
+                    if (u != null && u.dayStart == day) {
+                        segs.addAll(u.segments());
+                    }
                 }
+                List<PlayEntry> ps = new ArrayList<>();
+                if (playDay == day) {
+                    ps = parsePlays(sp.getString("play_json", "[]"));
+                }
+                if (segs.isEmpty() && ps.isEmpty()) {
+                    continue;
+                }
+                HistoryStore.DayData old = HistoryStore.read(this, day);
+                if (old != null) {
+                    // 合并规则见 ArchiveBackfill（离线单元测试覆盖）
+                    segs = ArchiveBackfill.mergeSegs(old.segs, segs);
+                    ps = ArchiveBackfill.mergePlays(old.plays, ps);
+                }
+                HistoryStore.write(this, day, segs, ps);
+                Log.i(TAG, "backfilled pending archive " + day + " segs=" + segs.size()
+                        + " plays=" + ps.size());
             }
         } catch (Throwable t) {
-            Log.w(TAG, "loadPlays failed: " + t);
+            Log.w(TAG, "backfillPendingArchive failed: " + t);
         }
-        publishPlays();
     }
 
     private void savePlays() {
@@ -374,6 +523,7 @@ public class HudService extends Service {
             return false;
         }
         plays.add(e);
+        playsRev++;
         return true;
     }
 
@@ -705,13 +855,14 @@ public class HudService extends Service {
         if (intent != null && intent.getBooleanExtra("reload_plays", false)) {
             importSeed();
             readMiio(true);
-            archiveToday();
+            archiveToday(true);
             Log.i(TAG, "plays reloaded: " + plays.size());
         }
         if (intent != null && intent.getBooleanExtra("archive_now", false)) {
-            archiveToday();
-            Log.i(TAG, "archive written: " + HistoryStore.fileFor(this,
-                    UsageDay.dayStartOf(System.currentTimeMillis())));
+            boolean wrote = archiveToday(true);
+            Log.i(TAG, "archive_now " + (wrote ? "written" : "skipped") + ": "
+                    + HistoryStore.fileFor(this,
+                    UsageDay.dayStartOf(System.currentTimeMillis())).getName());
         }
         if (attached) {
             render();
@@ -728,7 +879,7 @@ public class HudService extends Service {
             lastTickElapsed = 0L;
             bootstrapped = false;
             backfillToday();
-            saveUsage();
+            saveUsage(true);
             if (attached) {
                 render();
             }
@@ -780,8 +931,8 @@ public class HudService extends Service {
         if (attached) {
             detach();
         }
-        saveUsage();
-        archiveToday();
+        saveUsage(true);
+        archiveToday(true);
         sUsage = null;
         sPlays = null;
         super.onDestroy();

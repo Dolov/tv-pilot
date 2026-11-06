@@ -21,10 +21,12 @@
                             ▼
 ┌────────────────────────────────────────────────────────────┐
 │ App 层  tvhud/  com.dsh.tvhud                               │
-│  HomeActivity   菜单（今日使用 / 使用记录 / 即将上线）        │
+│  HomeActivity   菜单（今日使用 / 使用记录 / 使用报告）        │
 │  MainActivity   台账详情：时间轴 + 明细（60s 刷新）           │
+│  ReportsActivity 周/月/年报告（三套 Canvas 大屏，异步聚合）    │
 │  HudService     1s 采样、屏保角标、归档、ADB/无障碍自愈        │
 │  UsageDay / HistoryStore / Categories / PlayEntry            │
+│  ReportEngine / ReportMath / DayAgg / Report / ChartAxis      │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -75,6 +77,7 @@ UsageStatsManager.queryEvents（增量，1s）
 | 新脚本 | `scripts/`，加进 `SKILL.md` 操作索引与 `README.md` 命令表 | 把本机 IP/型号写死 |
 | 新的机器（本机事实） | 重跑 `scripts/setup.sh` | 改 SKILL.md |
 | App 内新页面 | `HomeActivity.ITEMS` + `open()` 分发 | 直接改 `MainActivity` 启动逻辑 |
+| 报告页/聚合 | `ReportsActivity` + `ReportEngine/ReportMath` | 在 View 里另读文件 / 在 onDraw 里重算派生数据 |
 
 ## 不变量（改代码时保持）
 
@@ -83,3 +86,6 @@ UsageStatsManager.queryEvents（增量，1s）
 3. 人类可读输出给结论；机器可读走 `--json`，字段见 `docs/json-contract.md`。
 4. 本机事实只进 `.env` / `references/local.md`（skill 内）；机型事实只进设备档案/provider。
 5. bash 3.2 兼容（macOS 自带）：不用关联数组、`${var,,}` 等 4.x 语法。
+6. 纯计算口径（周期边界、聚合、百分比、堆叠柱几何）必须能在 `tests/java` 里离线断言；
+   报告新增派生量时同步扩 `ReportMath.checkInvariants`，真机 E2E 会把告警当失败。
+7. 提交门禁是 `make check && make test`；`make e2e` 需要电视，改动交互/布局时人工跑一次。

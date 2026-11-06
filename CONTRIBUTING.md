@@ -9,7 +9,12 @@
 make check && make test
 ```
 
-`make check` 不连电视；`make test` 用 `tests/fake-adb` 离线跑，不需要真实设备、不下载工具链。
+`make check` 不连电视；`make test` 完全离线（`tests/fake-adb` 跑脚本 + `tests/java` 跑报告核心
+纯 Java 单元测试），不需要真实设备、不下载工具链；`make e2e` 才是真机冒烟，需要电视。
+
+> CI 只跑 `make check && make test`，不构建 APK（构建需要 Android SDK 工具链，仓库不带、也不在
+> CI 里联网下载）。**动 `tvhud/src/`、Manifest 或 `res/` 的 PR，本地必须再跑一遍 `make apk`**，
+> 否则 CI 绿了也可能编不过。
 
 ## 贡献类型 → 文件放哪 → 校验命令
 
@@ -18,7 +23,7 @@ make check && make test
 | 新机型 / 修正档案 | `.agents/skills/tv-pilot/references/devices/<brand>-<model>.md` | `device-profile.sh lint` + `index` + `make check` |
 | 通用脚本 | `.agents/skills/tv-pilot/scripts/*.sh` | `bash -n`、`shellcheck -S error`、`make check && make test` |
 | 品牌 provider | `.agents/skills/tv-pilot/scripts/providers/<brand>-<model>.sh` | 按 `docs/providers.md` 契约 + `make check && make test` |
-| App（TV HUD） | `tvhud/src/`、`tvhud/AndroidManifest.xml`、`tvhud/build.sh` | `make apk` + 真机部署验证（见下） |
+| App（TV HUD） | `tvhud/src/`、`tvhud/AndroidManifest.xml`、`tvhud/build.sh` | `make apk` + `make test`（纯逻辑单元测试）+ `make e2e`（真机冒烟，见下） |
 | 文档 | `references/operations/`、`references/porting.md`、`docs/` | `make check`（含文档引用存在性） |
 
 ## 1. 设备档案（新机型 / 修正）
@@ -66,6 +71,11 @@ bash scripts/app-deploy.sh --apk ../../.build/out/tvhud.apk --pkg com.dsh.tvhud 
 - 发版改版本号：根 `version.properties`（单一来源）与 `tvhud/AndroidManifest.xml`；
   `tvhud/build.sh` 直接读取 properties（文件缺失才用 fallback 硬编码）；`make check` 会校验三者一致。
 - 真机验证至少给出：进程/服务在、`logcat` 无崩溃、关键界面截图或 `screencap`。
+- 纯计算逻辑（周期/聚合/格式化/几何）先补 `tests/java/ReportCoreTest` 的用例，跑 `make test`；
+  Canvas 布局把可算的几何抽成纯函数（参考 `BarStack`），别在 View 里复制公式。
+- 有电视时跑 `make e2e`：装 APK → 报告页周/月/年导航 → 断言日志、无崩溃、无
+  `REPORT_INVARIANT`、返回首页，截图落在 `.build/e2e/`。没电视就在 PR 里写明这步没跑。
+- 分层说明见 `tests/README.md`；改报告聚合派生的量时同步扩 `ReportMath.checkInvariants`。
 
 ## 5. 文档
 

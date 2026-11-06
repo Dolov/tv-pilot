@@ -15,6 +15,9 @@ import java.util.Calendar;
 public class UsageDay {
     public static final long DAY_MS = 86400000L;
 
+    /** 历史归档保留天数（365 天）；报告的回看窗口也用它。 */
+    public static final int KEEP_DAYS = 365;
+
     /**
      * 类别编码方案版本：Categories 增删/重排时必须 +1，旧数据会被丢弃而不是画错颜色。
      * v3：播放页（tvhome DetailsActivity）改按 VIDEO 记录；旧数据全是 SYSTEM，升级后
@@ -36,6 +39,13 @@ public class UsageDay {
 
     public long dayStart;
     private final ArrayList<Seg> segs = new ArrayList<>();
+    /**
+     * 数据版本号：每有一次实质变更（新增/延长分段）就 +1。
+     * 用来判断「要不要落盘」：版本没变说明数据跟上次写盘时一模一样，不必再写。
+     * 只在单个 UsageDay 实例内单调递增；跨天会换新实例（从 0 开始），
+     * 所以比较版本号时必须同时比较 dayStart。
+     */
+    private long revision = 0L;
 
     public UsageDay(long dayStart) {
         this.dayStart = dayStart;
@@ -51,13 +61,32 @@ public class UsageDay {
         return c.getTimeInMillis();
     }
 
-    public void reset(long newDayStart) {
+    public synchronized void reset(long newDayStart) {
         dayStart = newDayStart;
         segs.clear();
+        revision++;
+    }
+
+    /** 当前数据版本号（用于「变了才落盘」判断）。 */
+    public long revision() {
+        return revision;
     }
 
     public ArrayList<Seg> segments() {
         return segs;
+    }
+
+    /**
+     * 深拷贝一份给别的线程用（报告页后台聚合）。视图/服务仍在主线程，
+     * 只有跨线程才需要快照；返回的 Seg 是独立对象，不会再被 append 改动。
+     */
+    public synchronized UsageDay snapshot() {
+        UsageDay copy = new UsageDay(dayStart);
+        for (int i = 0; i < segs.size(); i++) {
+            Seg s = segs.get(i);
+            copy.segs.add(new Seg(s.start, s.end, s.cat));
+        }
+        return copy;
     }
 
     /** 已记录的最后一个时间点；空的时候就是当天 0 点。 */
@@ -65,8 +94,11 @@ public class UsageDay {
         return segs.isEmpty() ? dayStart : segs.get(segs.size() - 1).end;
     }
 
-    /** 追加一段 [from, to)，同类且间隔 ≤2s 时合并。 */
-    public void append(long from, long to, int cat) {
+    /**
+     * 追加一段 [from, to)，同类且间隔 ≤2s 时合并。
+     * synchronized：报告页会在后台线程取快照，避免读到一半正在 merge 的分段。
+     */
+    public synchronized void append(long from, long to, int cat) {
         from = Math.max(from, dayStart);
         to = Math.min(to, dayStart + DAY_MS);
         if (to <= from) {
@@ -76,9 +108,11 @@ public class UsageDay {
         if (last != null && last.cat == cat && last.end <= to && from - last.end <= 2000L) {
             if (to > last.end) {
                 last.end = to;
+                revision++;
             }
         } else {
             segs.add(new Seg(from, to, cat));
+            revision++;
         }
     }
 

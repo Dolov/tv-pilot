@@ -21,6 +21,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck
 
+      - name: Set up JDK（报告核心单元测试需要 javac）
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Repo self-check
         run: make check
 
