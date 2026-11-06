@@ -1,0 +1,236 @@
+{
+  "skill_name": "tv-pilot",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我把家里的小米电视连上电脑，先看看它装了哪些应用、有没有广告组件，别改任何东西。",
+      "expected_output": "用 ensure-tv.sh 拿连接（已有连接走 L0/L1，不跑全网扫描），probe.sh 输出只读报告（型号、固件、包列表、广告候选、儿童模式配置），全程不修改电视。",
+      "files": [],
+      "expectations": [
+        "先尝试 ensure-tv.sh（或等价的廉价连接检查），而不是直接跑 find-tv.sh 全量扫描",
+        "unauthorized 时提示用户去电视上按“允许”",
+        "probe.sh 产出型号、固件、包列表、广告候选、儿童模式配置",
+        "全程没有执行任何写操作（install/uninstall/settings put/disable）",
+        "从开始到给出报告在 30 秒内"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "小米电视 ADB 调试我明明打开了，电脑上 adb connect 一直 Connection refused，是怎么回事？",
+      "expected_output": "判断为 5555 未监听，给出重启电视、确认开关位置、检查端口/网段的排查顺序，并提示用 scripts/adb.sh 避免 HOME 权限问题；不反复重试 connect。",
+      "files": [],
+      "expectations": [
+        "判断为 5555 未监听（ADB 开关未生效 / 需要重启电视）",
+        "给出“重启电视后重新开 ADB”的排查顺序",
+        "提示用 scripts/adb.sh 而不是裸 adb（HOME 权限坑）",
+        "没有把反复 adb connect 重试当作解决方案"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "电视上的儿童模式到时间了还能答题继续看，我想让娃每天最多看一小时，到点就停，家里没有常开的电脑。",
+      "expected_output": "说明官方儿童模式的弱点（密码明文/答题找回），解释需要本地计时的第三方 App，推荐 KidLock 或 ScreenTimeController，并提醒防卸载与权限授予问题。",
+      "files": [],
+      "expectations": [
+        "指出官方儿童模式可被答题/密码绕过",
+        "说明需要电视端本地计时（不能依赖常开电脑）",
+        "给出可安装的第三方 App 方案及防卸载/权限注意事项",
+        "改配置前说明会动哪些设置"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "帮我看看我家电视今天用了多久、都看了些什么内容。",
+      "expected_output": "只读采集：确保连接后跑 usage.sh；亮屏看 screen_toggled，应用时长按 usagestats 文件顺序配对，播放记录读 /sdcard/miio/miothost.txt 或日志；明确区分确认事实与推断。",
+      "files": [],
+      "expectations": [
+        "先拿连接再采集，未使用写操作",
+        "亮屏时长基于 screen_toggled（不是 play_time_today_watchtime）",
+        "分应用/分页面时长按 usagestats 事件文件顺序配对计算",
+        "播放记录来自 miothost.txt 或 MiTVOtService_PW 日志",
+        "明确区分“确认到的”和“推断的”"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "我家小米电视的遥控器好像快没电了，帮我看看它现在还剩多少电。",
+      "expected_output": "用 remote-battery.sh 一条命令完成：ensure-tv 拿连接、一次 adb shell 取回 settings 键/配对信息/日志，输出百分比、数据来源、低电量阈值和建议；不手工拼多条 adb 查询，不扫网段。",
+      "files": [],
+      "expectations": [
+        "使用 scripts/remote-battery.sh（或等价的一次 adb shell 查询），未手工拼 4 条以上 adb 查询",
+        "已连接场景下没有调用 find-tv.sh 扫描网段",
+        "输出包含遥控器 MAC、电量百分比、数据来源（settings 键或蓝牙回调）",
+        "给出低电量阈值（25%）和是否建议换电池",
+        "从开始到给出结果在 15 秒内"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "再帮我看一次遥控器电量，刚才不是刚看过吗。",
+      "expected_output": "直接复用已连接状态或 .tools/state.env 缓存，1 秒级返回；不重新扫描网段、不重新发现设备。",
+      "files": [],
+      "expectations": [
+        "直接读取连接/缓存（ensure-tv L0 或 state.sh），未调用 find-tv.sh",
+        "未重复执行多步设备发现流程",
+        "从开始到给出结果在 5 秒内",
+        "输出仍标注读数的上报时间或来源"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "电视好像连不上了，遥控器电量还能看到吗？",
+      "expected_output": "快速失败并分类：unauthorized=去电视按允许；offline=待机/重启中先唤醒；refused=ADB 开关未生效需重启电视。给出可执行下一步，不长时间重试、不挂死。",
+      "files": [],
+      "expectations": [
+        "在 20 秒内给出结论，没有长时间阻塞或无限重试",
+        "按 unauthorized / offline / Connection refused 分类给出对应处置",
+        "提示先唤醒电视或重新打开 ADB 调试",
+        "没有把“反复 adb connect”当作解决办法"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "电视现在是开着还是关了？是休眠吗？",
+      "expected_output": "用 scripts/tv-state.sh（或等价的单次 adb shell）读 mWakefulness、mScreenState、/proc/uptime，给出「开机中 / 熄屏待机 / 连不上」的结论与开机天数；说明「遥控器关机多半只是熄屏待机，ADB 仍可能通」。",
+      "files": [],
+      "expectations": [
+        "使用 scripts/tv-state.sh 或一次 adb shell 取全（不手工拼 4 条以上查询）",
+        "结论基于 mWakefulness + mScreenState，而不是 ping/adb 是否通",
+        "给出开机时长（uptime 换算成天/小时）",
+        "说明关机 / 待机 / 断电三者的判定差异",
+        "从开始到给出结论在 5 秒内"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "我自己写了个小 App 想在电视开机后自动跑起来，但重启后它一直不起来，广播也不触发。",
+      "expected_output": "判定为 MIUI TV 开机把所有第三方应用置 stopped=true 导致 BOOT_COMPLETED 不派发；给出无障碍服务做开机入口的做法（追加 enabled_accessibility_services、install/force-stop 会删条目、条目要最后写），并提示 App 侧自愈与验证方法。",
+      "files": [],
+      "expectations": [
+        "先查 dumpsys package <pkg> | grep stopped= 或 logcat 里的 PackageManager: stop: 作为证据",
+        "指出 stopped 状态收不到广播，不是 App 代码问题",
+        "给出不 root 的无障碍服务方案，并强调要追加而不是覆盖原列表",
+        "提到 adb install -r / am force-stop 会删掉无障碍条目，必须最后写",
+        "给出重启后的验证清单（进程 / 服务 / 条目 / 日志）"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "能不能让电视在屏保的时候，右上角显示一个我自己做的角标？",
+      "expected_output": "说明本机屏保是 com.mitv.screensaver/.RenderActivity、标准 Dream 通道未启用；给出 SYSTEM_ALERT_WINDOW + TYPE_SYSTEM_ALERT 的悬浮窗方案、用 UsageStats 增量识别屏保（只查 20 秒会误判）、以及不装 Android Studio 的构建方式。",
+      "files": [],
+      "expectations": [
+        "指出屏保组件，并说明为什么不能用 DreamService",
+        "给出悬浮窗授权（appops SYSTEM_ALERT_WINDOW）与窗口类型",
+        "屏保检测用 UsageStats 且强调增量查询（不能只查 20 秒窗口）",
+        "提到切到桌面/应用时自动移除角标",
+        "指向 build-mini-apk / screensaver 参考文档"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "我家电视上现在都装了哪些应用？是不是最近多了什么东西？",
+      "expected_output": "读 references/devices/mitv-nsop0-apps.md 给出当前 109 包快照概况，并跑 scripts/apps-inventory.sh diff 与快照比对，报告新增/卸载的包；不凭记忆列包、不逐个 pm list 拉原始输出。",
+      "files": [],
+      "expectations": [
+        "用 apps-inventory.sh diff 做漂移比对，而不是重新全量摸索",
+        "说明第三方包里有出厂预装到 /data 的组件，不能只看 -3 判断",
+        "指出快照时间/固件版本，并提示变化后要 update 快照",
+        "不把原始 pm list 输出直接整段贴给用户"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "电视上那个洪恩识字和云视听小电视分别是干嘛的？孩子平时主要用哪个？",
+      "expected_output": "读 references/devices/mitv-nsop0-apps.md，按「能干什么 / 备注 / 家庭使用地图」回答 App 功能与适用人群；不靠包名猜。",
+      "files": [],
+      "expectations": [
+        "从 apps 文档（功能列 + 家庭使用地图）取信息，而不是凭包名臆测",
+        "说明这些 App 是否受儿童模式时长约束",
+        "不把原始 pm list 输出整段贴出来"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "我想给电视右上角角标再改点东西，重新编译装上去，要注意什么？",
+      "expected_output": "按 references/dev-workflow.md 走：build-tools.sh status 自检 → 改源码 → build.sh → app-deploy.sh（install 后 appops/grant/启动清 stopped/无障碍条目最后写）→ logcat+screencap 验证；说明为什么条目必须最后写。",
+      "files": [],
+      "expectations": [
+        "先自检工具链（build-tools.sh status），不重新下载 SDK/Android Studio",
+        "部署用 app-deploy.sh 或等价顺序，无障碍条目最后写",
+        "有验证步骤（进程/logcat/截图），不是装完就说完成",
+        "提到签名/keystore 固定，避免被迫卸载重装"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "屏保角标上那条「今日使用长条」里，今天看动画片的那 20 分钟怎么是灰蓝色的（系统色），不是视频色？",
+      "expected_output": "先用 usage.sh / 截图确认这段时间确实被记录了（不是丢了），再解释根因：长条按前台包名分类，而看片时前台是 com.mitv.tvhome.DetailsActivity（内嵌播放器不切 Activity），所以被归到桌面/系统；修法是 UsageEvents.Event.getClassName() 按页面类名把详情/播放页记成 VIDEO（api-28 公开方法，本机实测可用），改分类规则要 bump UsageDay.SCHEME 并用 app-deploy.sh 增量升级（保留数据），装完截屏取色核对。",
+      "files": [],
+      "expectations": [
+        "先验证「记录了但颜色不对」，而不是直接说数据丢了",
+        "说出根因：按包名分类 + tvhome 详情页内嵌播放、播放器不进前台",
+        "给出 class 名方案（UsageEvents.Event.getClassName()），不是瞎猜播放器包名",
+        "改分类规则时 bump UsageDay.SCHEME（否则旧数据画错颜色）",
+        "升级用 app-deploy.sh（install -r 保数据），并提到装完截屏/取色验证"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "电视上那个 TV HUD 应用，打开后能不能像屏保长条一样看今天的时间轴，还要能看清每一段几点到几点、分别多久？",
+      "expected_output": "在 MainActivity 里做详情页：复用 HudService 的今日分段（内存快照），画 0:00→24:00 大时间轴（整点刻度 + 现在线），下面列分段明细（起止时间/时长/类别，遥控器可滚动），每秒刷新；屏保角标保持原样；详情页自身的时间不计入统计；装完用截图核对。",
+      "files": [],
+      "expectations": [
+        "App 内展示 0:00→24:00 时间轴，与屏保长条同源同色",
+        "明细列每段起止时间、时长、类别，可遥控器滚动",
+        "详情页打开的时间不计入使用统计",
+        "屏保角标内容保持不变",
+        "装完有截图/日志验证，不是只说完成",
+        "字号克制（正文 ≤10dp），用 DIN/细体数字 + 中性色 + 发丝线的编辑式排版，不是大字号彩色块",
+        "列表行高与字号匹配、视口按整行吸附，不出现半行裁切或文字相压",
+        "行高/色脊比例协调：色脊垂直居中且高度对齐文字，滚动边缘不切半行",
+        "类别列右侧留出与时间列对称的小内边距，不是把整页缩进",
+        "明细里「看了什么」是独立一列：视频行显示片名+集数，按每集开始时间拆行"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "HUD 详情页能不能翻看前几天的使用记录？一年的话存储会不会撑爆？",
+      "expected_output": "左右键按天翻历史（≤365 天），非今天从按天归档的 JSON 读；归档只存结构化 segs/plays（每天约 2KB、一年 2–6MB），不存原始 miothost（1MB/小时会到 GB 级）；服务启动清理超期归档。",
+      "files": [],
+      "expectations": [
+        "说明左右键翻历史、最远一年、不能翻到未来",
+        "历史数据来自按天归档文件而不是米家日志",
+        "给出容量估算：结构化记录一年 2–6MB，原始日志才会爆",
+        "有清理策略（保留 365 天）"
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "电视上那个 TV HUD 应用，打开后别直接进详情页，先给我一个菜单，我以后还想往里加功能。",
+      "expected_output": "把启动页改成 HomeActivity 菜单（MainActivity 降为详情页子页面），菜单条目数据驱动（ITEMS 数组 + open() 分发），已做项进今日/历史，未做项显示「即将上线」并按确认给 toast；遥控器上下选择、确认进入、返回回菜单；屏保角标完全不动；构建部署后用截图验证菜单/焦点/返回栈。",
+      "files": [],
+      "expectations": [
+        "启动组件换成菜单 Activity（HomeActivity），MainActivity 不再挂 LAUNCHER",
+        "菜单条目是数据驱动的列表（ITEMS），加功能只改一处，不是硬编码一堆按钮",
+        "已实现项能进详情页/历史页，未实现项明确标「即将上线」而不是点了没反应",
+        "遥控器上下键换焦点、确认键进入、返回键回菜单",
+        "屏保角标内容保持不变",
+        "装完有截图/返回栈验证，不是只说完成"
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "详情页里怎么一堆连续的「桌面/系统」小段，都分开列出来了，能合并的合并一下；另外这页不用每秒刷新，一分钟一次就够了。",
+      "expected_output": "在明细行生成后做相邻同类合并（类别/片名/集数相同、中间空档 ≤5 分钟并成一行，时间列首尾跨度、时长列各段实际之和），并把 MainActivity 刷新间隔从 1s 改成 60s；刷新重建列表时保持焦点行和滚动位置，避免每分钟跳回顶部。",
+      "files": [],
+      "expectations": [
+        "相邻同类行合并成一行，而不是把每条几秒的小段都单列",
+        "合并后时间列显示首尾跨度、时长列显示实际之和（空档不计），并说明两者可能差异大",
+        "刷新间隔改成 60s 左右，不再每秒刷新",
+        "刷新重建后焦点和滚动位置不丢",
+        "装完有截图验证（合并后行数减少、焦点仍在原行）"
+      ]
+    }
+  ]
+}

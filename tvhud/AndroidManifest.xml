@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.dsh.tvhud"
+    android:versionCode="12"
+    android:versionName="1.11">
+
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="22" />
+
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <application
+        android:label="TV HUD"
+        android:icon="@android:drawable/ic_menu_recent_history"
+        android:allowBackup="false">
+
+        <!-- 启动页：菜单。以后加功能只改 HomeActivity.ITEMS -->
+        <activity
+            android:name="com.dsh.tvhud.HomeActivity"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 详情页：时间轴 + 分段明细（从菜单进，返回键回菜单） -->
+        <activity
+            android:name="com.dsh.tvhud.MainActivity"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:exported="true"
+            android:launchMode="singleTop" />
+
+        <service
+            android:name="com.dsh.tvhud.HudService"
+            android:exported="false" />
+
+        <service
+            android:name="com.dsh.tvhud.BootAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name="com.dsh.tvhud.CtrlReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.dsh.tvhud.SHOW" />
+                <action android:name="com.dsh.tvhud.HIDE" />
+                <action android:name="com.dsh.tvhud.ADB_KEEP_ON" />
+                <action android:name="com.dsh.tvhud.ADB_KEEP_OFF" />
+                <action android:name="com.dsh.tvhud.PREVIEW_ON" />
+                <action android:name="com.dsh.tvhud.PREVIEW_OFF" />
+                <action android:name="com.dsh.tvhud.RESET_USAGE" />
+                <action android:name="com.dsh.tvhud.RELOAD_PLAYS" />
+                <action android:name="com.dsh.tvhud.ARCHIVE_NOW" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.dsh.tvhud.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

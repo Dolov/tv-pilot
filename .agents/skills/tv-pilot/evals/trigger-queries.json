@@ -1,0 +1,106 @@
+{
+  "skill_name": "tv-pilot",
+  "note": "描述触发测试集。真实触发率需 claude CLI（scripts.run_loop）；本环境用手工对照 description 的方式核对覆盖。",
+  "queries": [
+    {
+      "query": "电视上右上角那个角标能不能把天气也加上",
+      "should_trigger": true,
+      "kind": "屏保角标/改自研App"
+    },
+    {
+      "query": "孩子今天是不是又偷偷看动画片了？帮我看看电视今天都看了什么",
+      "should_trigger": true,
+      "kind": "使用统计"
+    },
+    {
+      "query": "遥控器好像快没电了，怎么看还剩多少电",
+      "should_trigger": true,
+      "kind": "遥控器电量"
+    },
+    {
+      "query": "帮我在电视上装个 B 站那个应用",
+      "should_trigger": true,
+      "kind": "装第三方 APK"
+    },
+    {
+      "query": "小米电视儿童模式密码忘了，到点还能答题继续看，怎么办",
+      "should_trigger": true,
+      "kind": "儿童模式"
+    },
+    {
+      "query": "电视重启后我自己写的小 App 不启动了，是不是开机广播收不到",
+      "should_trigger": true,
+      "kind": "开机自启"
+    },
+    {
+      "query": "adb 连不上家里电视，5555 一直拒绝连接",
+      "should_trigger": true,
+      "kind": "ADB 连接排障"
+    },
+    {
+      "query": "电视上装的那个 com.xiaodianshi.tv.yst 是干嘛的，孩子能用吗",
+      "should_trigger": true,
+      "kind": "已装应用功能"
+    },
+    {
+      "query": "给电视写个小工具，开机后显示天气",
+      "should_trigger": true,
+      "kind": "开发小 App"
+    },
+    {
+      "query": "电视上显示开机天数的那个东西，我想把字号改大一点",
+      "should_trigger": true,
+      "kind": "改自研 App"
+    },
+    {
+      "query": "电视是什么型号的？多大内存？系统是什么版本",
+      "should_trigger": true,
+      "kind": "设备信息采集"
+    },
+    {
+      "query": "手机上的小米遥控器 App 连不上电视，一直转圈",
+      "should_trigger": false,
+      "kind": "近似但不同域：手机 App 投遥控（Milink），不是 ADB 操作"
+    },
+    {
+      "query": "我想把手机画面投到电视上，电视是小米的",
+      "should_trigger": false,
+      "kind": "投屏，不是 ADB 任务；skill 只顺带记录了 AirPlay/UPnP 信息"
+    },
+    {
+      "query": "买个 65 寸电视推荐哪个牌子",
+      "should_trigger": false,
+      "kind": "导购，与本机无关"
+    },
+    {
+      "query": "小米电视最近很卡，怎么清理内存",
+      "should_trigger": false,
+      "kind": "近似：可查但 skill 没有清理方案（可作为未来补文档的方向）"
+    },
+    {
+      "query": "帮我把电视音量调小一点",
+      "should_trigger": false,
+      "kind": "单步操作，用遥控器/keyevent 即可，不需要 skill"
+    },
+    {
+      "query": "屏保角标上的今日使用长条，看动画片的时段怎么没显示/颜色不对",
+      "should_trigger": true,
+      "kind": "屏保角标/今日使用长条"
+    },
+    {
+      "query": "电视上打开那个 HUD 应用，能不能看到今天的具体时间轴和每段几点到几点",
+      "should_trigger": true,
+      "kind": "屏保角标/详情页"
+    },
+    {
+      "query": "电视上昨天的使用记录还在吗，我想看看前天看了多久",
+      "should_trigger": true,
+      "kind": "屏保角标/历史记录"
+    },
+    {
+      "query": "TV HUD 打开能不能先显示菜单，别一进来就是详情页，以后好加功能",
+      "should_trigger": true,
+      "kind": "自研 App/首页菜单"
+    }
+  ]
+}
