@@ -63,7 +63,7 @@ app/                                # 电视端 App：Manifest + build.sh + res/
 | 层 | 位置 | 覆盖 | 命令 |
 |---|---|---|---|
 | 离线脚本 | `tests/fake-adb` + `tests/run.sh` | skill 脚本的连接/取数/`--json` 契约 | `make test` |
-| 纯逻辑单元 | `tests/java/{report,pet}/`（含最小 Android 桩） | 报告周期/聚合/几何 + 宠物等级/场次预算/题库 | `make test` |
+| 纯逻辑单元 | `tests/java/{report,pet}/`（含最小 Android 桩） | 报告周期/聚合/几何 + 宠物等级/场次预算/题库/商店/分支/退化/变异/时间窗 | `make test` |
 | 真机冒烟 | `tests/e2e/report-smoke.sh` | 装 APK → 报告页周/月/年导航 → 日志/崩溃/一致性断言 + 截图 | `make e2e` |
 | 全量回归 | `tests/e2e/full-regression.sh` | 首页/今日使用/使用记录/报告/屏保服务 + 归档完整性 | `make regression` |
 

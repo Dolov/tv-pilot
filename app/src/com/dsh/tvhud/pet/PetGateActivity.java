@@ -23,12 +23,32 @@ import java.util.Locale;
  * 到点拦截页：宠物出来说「该休息啦」，孩子只有两个出口——
  * 休息，或答 3 题对 2 题再玩 5 分钟。60 秒不选默认休息。
  *
+ * 两种闸门：
+ * - GATE_NORMAL：这一场看满了。两个大按钮，答题是减速带不是收费站；
+ * - GATE_WINDOW：现在不在家长允许的时段。只有「好，去休息」一个按钮，
+ *   不走答题、不计场次、不给星星（PetEngine.onQuietRest），60 秒后自动休息。
+ *
+ * 6 岁体验：题干 34dp、选项 26dp 大卡片；默认焦点在中间；题目和选项都读出来；
+ * 答错先给一次机会，第二次才揭晓答案；60 秒无操作只重复读题，不判错、不倒计时；
+ * 没有失败音效、没有羞辱文案。
+ *
  * 返回键无效（避免误触退出），长按返回 5 秒进家长设置。
  */
 public final class PetGateActivity extends Activity {
-    private static final String CJK_FONT = "/system/fonts/MILanPro_Normal.ttf";
     private static final long BACK_LONG_MS = 5000L;
     private static final int SECONDS = 60;
+    private static final long IDLE_MS = 60000L;
+    private static final long ANSWER_NEXT_MS = 1000L;
+    private static final long ANSWER_REVEAL_MS = 1800L;
+    private static final long RESULT_FINISH_MS = 3000L;
+
+    private static final int OPTION_NORMAL = 0;
+    private static final int OPTION_WRONG = 1;
+    private static final int OPTION_CORRECT = 2;
+
+    private static final int DOT_PENDING = 0;
+    private static final int DOT_CORRECT = 1;
+    private static final int DOT_WRONG = 2;
 
     /** 已经有一个拦截页在前台/设置页压在它上面时，Service 不要重复拉起。 */
     private static volatile boolean sVisible;
@@ -42,30 +62,68 @@ public final class PetGateActivity extends Activity {
     private Budget budget;
     private QuizBank quizBank;
     private PetView petView;
+    private LinearLayout card;
+    private TextView celebrationText;
     private TextView titleText;
     private TextView messageText;
     private TextView countdownText;
+    private TextView restButton;
+    private TextView quizButton;
     private LinearLayout choiceRow;
     private LinearLayout quizPanel;
+    private LinearLayout dotsRow;
     private TextView questionText;
+    private TextView feedbackText;
     private final List<TextView> optionViews = new ArrayList<TextView>();
+    private final List<View> dotViews = new ArrayList<View>();
 
     private List<QuizBank.Question> questions = new ArrayList<QuizBank.Question>();
+    private final int[] optionState = new int[4];
+    private final int[] dotState = new int[3];
     private int quizIndex;
     private int quizCorrect;
+    private int wrongOption = -1;
+    private boolean retryAvailable;
     private boolean quizMode;
     private boolean finishedChoice;
     private boolean answering;
+    /** 页面初始化/切题时批量设置焦点，不要把每个焦点变化都读一遍。 */
+    private boolean suppressFocusSpeech;
+    /** 时段外被拦下：只给「好，去休息」。 */
+    private boolean windowGate;
     private int secondsLeft = SECONDS;
     private long backDownAt;
+    private boolean destroyed;
     private TextToSpeech tts;
     private boolean ttsReady;
     private String pendingSpeech;
 
     private final Handler handler = new Handler();
+    private final Runnable finishRunnable = new Runnable() {
+        @Override
+        public void run() {
+            finish();
+        }
+    };
+    private final Runnable hideCelebrationRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (celebrationText != null) {
+                celebrationText.setVisibility(View.GONE);
+            }
+        }
+    };
     private final Runnable tick = new Runnable() {
         @Override
         public void run() {
+            if (finishedChoice) {
+                return;
+            }
+            if (!sVisible) {
+                // 被设置页/桌面挡住时不偷偷倒计时，回到页面再接着算
+                handler.postDelayed(this, 500L);
+                return;
+            }
             secondsLeft--;
             if (secondsLeft <= 0) {
                 doRest(true);
@@ -73,6 +131,23 @@ public final class PetGateActivity extends Activity {
             }
             updateCountdown();
             handler.postDelayed(this, 1000L);
+        }
+    };
+    /** 60 秒没操作：只重复读题，不判错、不自动进屋。 */
+    private final Runnable idleRepeat = new Runnable() {
+        @Override
+        public void run() {
+            if (finishedChoice || !quizMode || quizIndex >= questions.size()) {
+                return;
+            }
+            if (!sVisible || answering) {
+                handler.postDelayed(this, 1000L);
+                return;
+            }
+            messageText.setText("慢慢想，不着急");
+            feedbackText.setText("慢慢想，不着急");
+            speakQuestion(questions.get(quizIndex));
+            handler.postDelayed(this, IDLE_MS);
         }
     };
 
@@ -85,10 +160,13 @@ public final class PetGateActivity extends Activity {
         PetStore.ensureDay(this, state, budget);
         PetEngine.settle(state, System.currentTimeMillis());
         quizBank = PetStore.loadQuiz(this);
+        windowGate = budget.gateReason == Budget.GATE_WINDOW;
         buildUi();
+        applyMode();
         updateCountdown();
-        handler.postDelayed(tick, 1000L);
         initTts();
+        speakIntro();
+        celebrateIfNeeded();
     }
 
     @Override
@@ -96,11 +174,26 @@ public final class PetGateActivity extends Activity {
         super.onResume();
         sVisible = true;
         sSettingsOpen = false;
+        if (finishedChoice) {
+            return;
+        }
+        if (quizMode) {
+            startIdle();
+        } else {
+            handler.removeCallbacks(tick);
+            handler.postDelayed(tick, 1000L);
+        }
     }
 
     @Override
     protected void onPause() {
         sVisible = false;
+        if (tts != null) {
+            try {
+                tts.stop();
+            } catch (Throwable ignored) {
+            }
+        }
         super.onPause();
     }
 
@@ -108,6 +201,7 @@ public final class PetGateActivity extends Activity {
     protected void onDestroy() {
         sVisible = false;
         sSettingsOpen = false;
+        destroyed = true;
         handler.removeCallbacksAndMessages(null);
         if (tts != null) {
             try {
@@ -115,7 +209,10 @@ public final class PetGateActivity extends Activity {
                 tts.shutdown();
             } catch (Throwable ignored) {
             }
+            tts = null;
         }
+        ttsReady = false;
+        pendingSpeech = null;
         super.onDestroy();
     }
 
@@ -153,39 +250,41 @@ public final class PetGateActivity extends Activity {
 
     private void buildUi() {
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0xff0b0f1a);
+        root.setBackgroundColor(PetUi.BG);
 
         petView = new PetView(this);
         petView.setState(state);
-        petView.setTranslationY(-dp(110));
+        petView.setTranslationY(-dp(130));
         root.addView(petView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        LinearLayout card = new LinearLayout(this);
+        card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_HORIZONTAL);
-        card.setPadding(dp(32), dp(22), dp(32), dp(24));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xf0141b2a);
-        bg.setCornerRadius(dp(26));
-        card.setBackground(bg);
+        card.setPadding(dp(36), dp(22), dp(36), dp(24));
+        card.setBackground(PetUi.round(this, PetUi.PANEL, 28f));
+        int cardWidth = Math.min(dp(820),
+                getResources().getDisplayMetrics().widthPixels - dp(48));
         FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(
-                dp(760), FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        cardLp.bottomMargin = dp(36);
+                cardWidth, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        cardLp.bottomMargin = dp(32);
         root.addView(card, cardLp);
 
-        titleText = label("这一场结束啦", 30f, 0xfff6f8fb, true);
+        celebrationText = label("", 26f, PetUi.YELLOW, true);
+        celebrationText.setVisibility(View.GONE);
+        card.addView(celebrationText);
+
+        titleText = label("这一场结束啦", 34f, PetUi.TEXT, true);
         card.addView(titleText);
 
-        messageText = label("让眼睛和电视都休息一下", 15f, 0xff9aa7b2, false);
-        LinearLayout.LayoutParams msgLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        msgLp.topMargin = dp(8);
+        messageText = label("让眼睛和电视都休息一下", 24f, PetUi.TEXT_DIM, false);
+        LinearLayout.LayoutParams msgLp = wrapLp();
+        msgLp.topMargin = dp(10);
         card.addView(messageText, msgLp);
 
-        countdownText = label("", 11f, 0xff697788, false);
-        LinearLayout.LayoutParams cdLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        countdownText = label("", 24f, PetUi.TEXT_FAINT, false);
+        LinearLayout.LayoutParams cdLp = wrapLp();
         cdLp.topMargin = dp(8);
         card.addView(countdownText, cdLp);
 
@@ -194,29 +293,26 @@ public final class PetGateActivity extends Activity {
         choiceRow.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        rowLp.topMargin = dp(20);
+        rowLp.topMargin = dp(22);
         card.addView(choiceRow, rowLp);
 
-        TextView rest = choiceButton("好，休息一下");
-        rest.setOnClickListener(new View.OnClickListener() {
+        restButton = choiceButton("好，休息一下");
+        restButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 doRest(false);
             }
         });
-        choiceRow.addView(rest);
+        choiceRow.addView(restButton);
 
-        TextView quiz = choiceButton("答题再玩 5 分钟");
-        quiz.setOnClickListener(new View.OnClickListener() {
+        quizButton = choiceButton("答题再玩 5 分钟");
+        quizButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 startQuiz();
             }
         });
-        choiceRow.addView(quiz);
-        if (!budget.canQuiz() || !budget.quizEnabled) {
-            quiz.setVisibility(View.GONE);
-        }
+        choiceRow.addView(quizButton);
 
         quizPanel = new LinearLayout(this);
         quizPanel.setOrientation(LinearLayout.VERTICAL);
@@ -224,46 +320,45 @@ public final class PetGateActivity extends Activity {
         quizPanel.setVisibility(View.GONE);
         LinearLayout.LayoutParams qpLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        qpLp.topMargin = dp(18);
+        qpLp.topMargin = dp(12);
         card.addView(quizPanel, qpLp);
 
-        questionText = label("", 26f, 0xfff6f8fb, true);
+        dotsRow = new LinearLayout(this);
+        dotsRow.setOrientation(LinearLayout.HORIZONTAL);
+        dotsRow.setGravity(Gravity.CENTER);
+        quizPanel.addView(dotsRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        for (int i = 0; i < 3; i++) {
+            View dot = new View(this);
+            LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(dp(16), dp(16));
+            dotLp.leftMargin = dp(6);
+            dotLp.rightMargin = dp(6);
+            dot.setLayoutParams(dotLp);
+            dot.setBackground(PetUi.circle(this, 0x33ffffff));
+            dot.setVisibility(View.GONE);
+            dotViews.add(dot);
+            dotsRow.addView(dot);
+        }
+
+        questionText = label("", 34f, PetUi.TEXT, true);
         questionText.setGravity(Gravity.CENTER);
-        quizPanel.addView(questionText);
+        questionText.setMaxLines(3);
+        LinearLayout.LayoutParams qLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        qLp.topMargin = dp(10);
+        quizPanel.addView(questionText, qLp);
 
-        LinearLayout opts1 = new LinearLayout(this);
-        opts1.setOrientation(LinearLayout.HORIZONTAL);
-        opts1.setGravity(Gravity.CENTER);
-        quizPanel.addView(opts1, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        LinearLayout opts2 = new LinearLayout(this);
-        opts2.setOrientation(LinearLayout.HORIZONTAL);
-        opts2.setGravity(Gravity.CENTER);
-        quizPanel.addView(opts2, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        feedbackText = label("想一想，别着急", 24f, PetUi.TEXT_DIM, true);
+        LinearLayout.LayoutParams fLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        fLp.topMargin = dp(8);
+        quizPanel.addView(feedbackText, fLp);
 
+        LinearLayout opts1 = optionRow();
+        LinearLayout opts2 = optionRow();
         for (int i = 0; i < 4; i++) {
             final int index = i;
-            TextView opt = new TextView(this);
-            opt.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 24f);
-            opt.setTextColor(0xff0e1114);
-            opt.setTypeface(cjk);
-            opt.setGravity(Gravity.CENTER);
-            opt.setFocusable(true);
-            opt.setPadding(dp(10), dp(14), dp(10), dp(14));
-            opt.setBackground(optionBg(false));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-            lp.leftMargin = dp(6);
-            lp.rightMargin = dp(6);
-            lp.topMargin = dp(6);
-            opt.setLayoutParams(lp);
-            opt.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                @Override
-                public void onFocusChange(View v, boolean hasFocus) {
-                    v.setBackground(optionBg(hasFocus));
-                }
-            });
+            TextView opt = optionCard();
             opt.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -279,23 +374,60 @@ public final class PetGateActivity extends Activity {
         }
 
         setContentView(root);
-        rest.requestFocus();
+        restButton.requestFocus();
+    }
+
+    private LinearLayout optionRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(10);
+        quizPanel.addView(row, lp);
+        return row;
+    }
+
+    private TextView optionCard() {
+        final TextView tv = label("", 26f, PetUi.TEXT_DARK, true);
+        tv.setFocusable(true);
+        tv.setFocusableInTouchMode(false);
+        tv.setGravity(Gravity.CENTER);
+        tv.setMinHeight(dp(84));
+        tv.setPadding(dp(14), dp(18), dp(14), dp(18));
+        tv.setBackground(optionBg(false));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        lp.leftMargin = dp(6);
+        lp.rightMargin = dp(6);
+        tv.setLayoutParams(lp);
+        tv.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                int index = optionViews.indexOf(v);
+                paintOption(index);
+                if (hasFocus && !suppressFocusSpeech && quizMode && !finishedChoice) {
+                    speak(((TextView) v).getText().toString());
+                    resetIdle();
+                }
+            }
+        });
+        return tv;
     }
 
     private TextView choiceButton(String text) {
-        TextView tv = new TextView(this);
-        tv.setText(text);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18f);
-        tv.setTextColor(0xff0e1114);
-        tv.setTypeface(cjk);
-        tv.setGravity(Gravity.CENTER);
+        TextView tv = label(text, 26f, PetUi.TEXT_DARK, true);
         tv.setFocusable(true);
-        tv.setPadding(dp(20), dp(14), dp(20), dp(14));
+        tv.setFocusableInTouchMode(false);
+        tv.setGravity(Gravity.CENTER);
+        tv.setMinWidth(dp(240));
+        tv.setMinHeight(dp(76));
+        tv.setPadding(dp(26), dp(18), dp(26), dp(18));
         tv.setBackground(optionBg(false));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.leftMargin = dp(8);
-        lp.rightMargin = dp(8);
+        lp.leftMargin = dp(10);
+        lp.rightMargin = dp(10);
         tv.setLayoutParams(lp);
         tv.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
@@ -306,15 +438,52 @@ public final class PetGateActivity extends Activity {
         return tv;
     }
 
+    /** 暖黄焦点 / 浅色未选中；答错红、答对绿在 {@link #paintOption(int)} 里覆盖。 */
     private GradientDrawable optionBg(boolean focus) {
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(dp(16));
-        bg.setColor(focus ? 0xffffe27a : 0xffe8eef5);
-        return bg;
+        return PetUi.round(this, focus ? PetUi.FOCUS : 0xffe8eef5, 20f);
+    }
+
+    private void paintOption(int index) {
+        if (index < 0 || index >= optionViews.size()) {
+            return;
+        }
+        TextView v = optionViews.get(index);
+        v.setTextColor(PetUi.TEXT_DARK);
+        if (optionState[index] == OPTION_WRONG) {
+            v.setBackground(PetUi.round(this, PetUi.RED, 20f));
+        } else if (optionState[index] == OPTION_CORRECT) {
+            v.setBackground(PetUi.round(this, PetUi.GREEN, 20f));
+        } else {
+            v.setBackground(optionBg(v.hasFocus()));
+        }
     }
 
     private void updateCountdown() {
         countdownText.setText(String.format(Locale.CHINA, "%d 秒后自动休息", secondsLeft));
+    }
+
+    private void applyMode() {
+        if (windowGate) {
+            titleText.setText("现在是休息时间");
+            messageText.setText("到点再看吧，宠物在等你");
+            restButton.setText("好，去休息");
+            quizButton.setVisibility(View.GONE);
+            return;
+        }
+        titleText.setText("这一场结束啦");
+        messageText.setText("让眼睛和电视都休息一下");
+        restButton.setText("好，休息一下");
+        int left = Math.max(0, budget.extensionsPerDay - budget.extensionsToday);
+        boolean canQuiz = budget.canQuiz() && left > 0;
+        quizButton.setText(String.format(Locale.CHINA, "今天还能答题 %d 次", left));
+        if (canQuiz) {
+            quizButton.setVisibility(View.VISIBLE);
+        } else {
+            quizButton.setVisibility(View.GONE);
+            if (budget.sessionsUsed >= budget.maxSessions) {
+                messageText.setText("今天玩过啦，明天见");
+            }
+        }
     }
 
     // ---------- 选择 ----------
@@ -323,22 +492,40 @@ public final class PetGateActivity extends Activity {
         if (finishedChoice) {
             return;
         }
+        if (sSettingsOpen) {
+            // 家长正在设置页里操作，先别替孩子做决定
+            return;
+        }
         finishedChoice = true;
         handler.removeCallbacksAndMessages(null);
-        budget.onRest(System.currentTimeMillis());
-        PetEngine.Result r = PetEngine.onSessionRest(state, auto, System.currentTimeMillis());
-        PetStore.save(this, state, budget);
-        messageText.setText(auto ? "电视自动休息啦，明天见" : "好，休息一下");
-        titleText.setText("晚安");
-        if (r.evolved) {
-            petView.play(PetView.ANIM_EVOLVE);
+        long now = System.currentTimeMillis();
+        budget.onRest(now);
+        // 时段外只是「现在不是看电视的时间」，不该奖励星星/成长
+        PetEngine.Result r = windowGate
+                ? PetEngine.onQuietRest(state, now)
+                : PetEngine.onSessionRest(state, auto, now);
+        boolean celebrated = playResultAnim(r);
+        if (celebrated) {
+            state.celebrateEvolution = false;
+        } else {
+            petView.play(PetView.ANIM_HAPPY);
         }
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                finish();
-            }
-        }, auto ? 1200L : 900L);
+        PetStore.save(this, state, budget);
+        choiceRow.setVisibility(View.GONE);
+        quizPanel.setVisibility(View.GONE);
+        countdownText.setVisibility(View.GONE);
+        celebrationText.setVisibility(View.GONE);
+        petView.setVisibility(View.VISIBLE);
+        if (windowGate) {
+            titleText.setText("好，去休息");
+            messageText.setText(auto ? "电视先休息啦，到点再来" : "到点再来，宠物在等你");
+            speak("好，去休息");
+        } else {
+            titleText.setText("晚安");
+            messageText.setText(auto ? "电视自动休息啦，明天见" : "好，休息一下");
+            speak("晚安，明天见");
+        }
+        handler.postDelayed(finishRunnable, auto ? 1200L : 900L);
     }
 
     private void startQuiz() {
@@ -353,12 +540,24 @@ public final class PetGateActivity extends Activity {
             return;
         }
         quizMode = true;
+        handler.removeCallbacks(tick);
+        handler.removeCallbacks(idleRepeat);
+        handler.removeCallbacks(hideCelebrationRunnable);
         petView.setVisibility(View.GONE);
+        celebrationText.setVisibility(View.GONE);
         quizIndex = 0;
         quizCorrect = 0;
-        handler.removeCallbacksAndMessages(null);
+        wrongOption = -1;
+        retryAvailable = false;
+        answering = false;
+        for (int i = 0; i < dotState.length; i++) {
+            dotState[i] = DOT_PENDING;
+        }
+        for (int i = 0; i < optionState.length; i++) {
+            optionState[i] = OPTION_NORMAL;
+        }
         choiceRow.setVisibility(View.GONE);
-        countdownText.setText("答对 2 题，再玩 5 分钟");
+        countdownText.setVisibility(View.GONE);
         quizPanel.setVisibility(View.VISIBLE);
         showQuestion();
     }
@@ -368,90 +567,242 @@ public final class PetGateActivity extends Activity {
             finishQuiz();
             return;
         }
+        answering = false;
+        retryAvailable = false;
+        wrongOption = -1;
         QuizBank.Question q = questions.get(quizIndex);
         titleText.setText(String.format(Locale.CHINA, "第 %d / %d 题", quizIndex + 1, questions.size()));
-        messageText.setText("想一想，别着急");
+        if (windowGate) {
+            messageText.setText("现在是休息时间");
+        } else {
+            messageText.setText("答对 2 题，再玩 5 分钟");
+        }
+        messageText.setVisibility(View.VISIBLE);
+        feedbackText.setTextColor(PetUi.TEXT_DIM);
+        feedbackText.setText("想一想，别着急");
         questionText.setText(q.prompt);
         for (int i = 0; i < optionViews.size(); i++) {
             TextView v = optionViews.get(i);
+            optionState[i] = OPTION_NORMAL;
             if (i < q.options.length) {
                 v.setVisibility(View.VISIBLE);
                 v.setText(q.options[i]);
-                v.setBackground(optionBg(false));
+                v.setFocusable(true);
+                v.setFocusableInTouchMode(false);
+                paintOption(i);
             } else {
                 v.setVisibility(View.INVISIBLE);
+                v.setFocusable(false);
             }
         }
-        speak(q.voice);
-        if (!optionViews.isEmpty()) {
-            optionViews.get(0).requestFocus();
-        }
+        updateDots();
+        int focusIndex = q.options.length >= 2 ? 1 : 0;
+        suppressFocusSpeech = true;
+        optionViews.get(focusIndex).requestFocus();
+        suppressFocusSpeech = false;
+        speakQuestion(q);
+        startIdle();
     }
 
     private void answer(int index) {
-        if (!quizMode || quizIndex >= questions.size()) {
+        if (!quizMode || answering || finishedChoice || quizIndex >= questions.size()) {
             return;
         }
-        if (answering) {
+        if (index < 0 || index >= optionViews.size()) {
             return;
         }
-        answering = true;
+        if (index == wrongOption) {
+            // 已经选错过的选项不再让他重复点，避免一次误触直接算第二次错
+            return;
+        }
         QuizBank.Question q = questions.get(quizIndex);
+        handler.removeCallbacks(idleRepeat);
         if (q.isCorrect(index)) {
+            optionState[index] = OPTION_CORRECT;
+            paintOption(index);
             quizCorrect++;
-            optionViews.get(index).setBackground(optionBg(true));
-            messageText.setText("答对啦");
-        } else {
-            optionViews.get(index).setBackground(optionBg(true));
-            optionViews.get(q.answer).setBackground(optionBg(true));
-            messageText.setText("正确答案是 " + q.options[q.answer]);
-            speak("正确答案是 " + q.options[q.answer]);
+            dotState[quizIndex] = DOT_CORRECT;
+            updateDots();
+            feedbackText.setTextColor(PetUi.GREEN);
+            feedbackText.setText("答对啦");
+            speak("答对啦");
+            answering = true;
+            handler.postDelayed(nextQuestionRunnable, ANSWER_NEXT_MS);
+            return;
         }
-        quizIndex++;
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                answering = false;
-                showQuestion();
+        if (!retryAvailable) {
+            // 第一次答错：只提示再想想，不揭晓答案，也不记错
+            retryAvailable = true;
+            wrongOption = index;
+            optionState[index] = OPTION_WRONG;
+            optionViews.get(index).setFocusable(false);
+            paintOption(index);
+            feedbackText.setTextColor(PetUi.ORANGE);
+            feedbackText.setText("再想想，还有一次机会");
+            speak("再想想，还有一次机会");
+            focusOtherOption(index);
+            resetIdle();
+            return;
+        }
+        // 第二次还错：温和揭晓答案，进下一题（本题记错）
+        optionState[index] = OPTION_WRONG;
+        optionState[q.answer] = OPTION_CORRECT;
+        paintOption(index);
+        paintOption(q.answer);
+        dotState[quizIndex] = DOT_WRONG;
+        updateDots();
+        feedbackText.setTextColor(PetUi.TEXT_DIM);
+        feedbackText.setText("没关系，答案是 " + q.options[q.answer]);
+        speak("没关系，答案是 " + q.options[q.answer] + "，我们看下一题");
+        answering = true;
+        handler.postDelayed(nextQuestionRunnable, ANSWER_REVEAL_MS);
+    }
+
+    private final Runnable nextQuestionRunnable = new Runnable() {
+        @Override
+        public void run() {
+            answering = false;
+            quizIndex++;
+            showQuestion();
+        }
+    };
+
+    private void focusOtherOption(int wrong) {
+        int n = optionViews.size();
+        for (int step = 1; step < n; step++) {
+            int i = (wrong + step) % n;
+            if (optionViews.get(i).getVisibility() == View.VISIBLE) {
+                suppressFocusSpeech = true;
+                optionViews.get(i).requestFocus();
+                suppressFocusSpeech = false;
+                return;
             }
-        }, 900L);
+        }
+    }
+
+    private void updateDots() {
+        int count = quizMode ? questions.size() : 0;
+        for (int i = 0; i < dotViews.size(); i++) {
+            View dot = dotViews.get(i);
+            if (i >= count) {
+                dot.setVisibility(View.GONE);
+                continue;
+            }
+            dot.setVisibility(View.VISIBLE);
+            int color;
+            if (dotState[i] == DOT_CORRECT) {
+                color = PetUi.GREEN;
+            } else if (dotState[i] == DOT_WRONG) {
+                color = PetUi.RED;
+            } else if (i == quizIndex) {
+                color = PetUi.FOCUS;
+            } else {
+                color = 0x33ffffff;
+            }
+            dot.setBackground(PetUi.circle(this, color));
+        }
     }
 
     private void finishQuiz() {
-        boolean pass = quizCorrect >= QuizBank.PASS_CORRECT && budget.canQuiz();
-        PetEngine.Result r = PetEngine.onQuiz(state, quizCorrect, questions.size(), System.currentTimeMillis());
+        if (finishedChoice) {
+            return;
+        }
+        finishedChoice = true;
+        handler.removeCallbacksAndMessages(null);
+        boolean pass = questions.size() > 0 && quizCorrect * 2 >= questions.size();
+        PetEngine.Result r = PetEngine.onQuiz(state, quizCorrect, questions.size(),
+                System.currentTimeMillis());
         if (pass) {
             budget.onQuizPass();
-            PetStore.save(this, state, budget);
-            titleText.setText("答对啦！");
-            messageText.setText("再玩 5 分钟，到点记得休息");
-            quizPanel.setVisibility(View.GONE);
-            petView.play(PetView.ANIM_HAPPY);
-            speak("答对啦，再玩五分钟");
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    finish();
-                }
-            }, 1500L);
         } else {
             budget.onQuizFail();
-            PetStore.save(this, state, budget);
-            titleText.setText("差一点点");
-            messageText.setText("今天先休息，明天我们再试");
-            quizPanel.setVisibility(View.GONE);
-            petView.play(PetView.ANIM_HAPPY);
-            speak("差一点点，明天再试");
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    finish();
-                }
-            }, 2200L);
+        }
+        boolean celebrated = playResultAnim(r);
+        if (celebrated) {
+            state.celebrateEvolution = false;
+        }
+        PetStore.save(this, state, budget);
+        quizPanel.setVisibility(View.GONE);
+        countdownText.setVisibility(View.GONE);
+        petView.setVisibility(View.VISIBLE);
+        if (!celebrated) {
+            petView.play(pass ? PetView.ANIM_HAPPY : PetView.ANIM_IDLE);
+        }
+        if (pass) {
+            titleText.setText("答对啦，再玩 5 分钟");
+            messageText.setText("到点记得休息哦");
+            speak("答对啦，再玩五分钟");
+        } else {
+            titleText.setText("差一点点，明天我们再试");
+            messageText.setText("宠物会等你的");
+            speak("差一点点，明天我们再试");
+        }
+        handler.postDelayed(finishRunnable, RESULT_FINISH_MS);
+    }
+
+    /** 按结算结果播外观变化动画；返回 true 表示播了需要「庆祝」的动画。 */
+    private boolean playResultAnim(PetEngine.Result r) {
+        if (r == null) {
+            return false;
+        }
+        if (r.mutated) {
+            petView.play(PetView.ANIM_MUTATE);
+            return true;
+        }
+        if (r.branchLocked) {
+            petView.play(PetView.ANIM_BRANCH);
+            return true;
+        }
+        if (r.degraded) {
+            petView.play(PetView.ANIM_DEGRADE);
+            return true;
         }
         if (r.evolved) {
             petView.play(PetView.ANIM_EVOLVE);
+            return true;
         }
+        return false;
+    }
+
+    // ---------- 庆祝 ----------
+
+    /**
+     * 进页面时如果有待庆祝的进化/变异/分支/退化，播一次对应动画并清掉标记。
+     * 只放一段小字提示，不占用 60 秒倒计时，也不挡两个大按钮。
+     */
+    private void celebrateIfNeeded() {
+        if (state == null || !state.celebrateEvolution) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        int anim;
+        String text;
+        if (state.isDegraded(now)) {
+            anim = PetView.ANIM_DEGRADE;
+            text = "宠物有点累了，休息好就回来";
+        } else if (state.mutationCount > 0) {
+            anim = PetView.ANIM_MUTATE;
+            text = "宠物变异啦！" + state.mutationLabel();
+        } else if (state.branch != PetState.BRANCH_NONE
+                && state.stage() >= PetState.STAGE_ADULT) {
+            anim = PetView.ANIM_BRANCH;
+            text = "分叉成" + state.branchName() + "啦！";
+        } else if (state.stage() > PetState.STAGE_EGG) {
+            anim = PetView.ANIM_EVOLVE;
+            text = "进化成 " + PetState.stageName(state.stage()) + " 啦！";
+        } else {
+            anim = PetView.ANIM_HAPPY;
+            text = "宠物长大一点点啦";
+        }
+        state.celebrateEvolution = false;
+        // 先落盘再播，进程被杀也不会每次进来都庆祝一遍
+        PetStore.saveState(this, state);
+        if (petView != null) {
+            petView.play(anim);
+        }
+        celebrationText.setText(text);
+        celebrationText.setVisibility(View.VISIBLE);
+        handler.postDelayed(hideCelebrationRunnable, 6000L);
     }
 
     // ---------- TTS ----------
@@ -461,6 +812,9 @@ public final class PetGateActivity extends Activity {
             tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
                 @Override
                 public void onInit(int status) {
+                    if (destroyed) {
+                        return;
+                    }
                     if (status != TextToSpeech.SUCCESS || tts == null) {
                         ttsReady = false;
                         return;
@@ -471,8 +825,9 @@ public final class PetGateActivity extends Activity {
                                 && lang != TextToSpeech.LANG_MISSING_DATA;
                         tts.setSpeechRate(0.86f);
                         if (pendingSpeech != null) {
-                            tts.speak(pendingSpeech, TextToSpeech.QUEUE_FLUSH, null);
+                            String pending = pendingSpeech;
                             pendingSpeech = null;
+                            tts.speak(pending, TextToSpeech.QUEUE_FLUSH, null);
                         }
                     } catch (Throwable t) {
                         ttsReady = false;
@@ -485,10 +840,11 @@ public final class PetGateActivity extends Activity {
     }
 
     private void speak(String text) {
-        if (text == null || text.isEmpty()) {
+        if (text == null || text.isEmpty() || destroyed) {
             return;
         }
         if (!ttsReady || tts == null) {
+            // TTS 还没初始化好：只记最后一次，初始化完再读
             pendingSpeech = text;
             return;
         }
@@ -498,28 +854,65 @@ public final class PetGateActivity extends Activity {
         }
     }
 
-    // ---------- 字体 / 尺寸 ----------
+    private void speakIntro() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(titleText.getText());
+        CharSequence msg = messageText.getText();
+        if (msg != null && msg.length() > 0) {
+            sb.append('。').append(msg);
+        }
+        speak(sb.toString());
+    }
 
-    private Typeface cjk = Typeface.DEFAULT;
+    private void speakQuestion(QuizBank.Question q) {
+        if (q == null) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        if (q.voice != null && q.voice.length() > 0) {
+            sb.append(q.voice);
+        } else {
+            sb.append(q.prompt);
+        }
+        sb.append("。选项：");
+        for (int i = 0; i < q.options.length; i++) {
+            if (i > 0) {
+                sb.append('、');
+            }
+            sb.append(q.options[i]);
+        }
+        speak(sb.toString());
+    }
 
-    private void initCjk() {
-        try {
-            cjk = Typeface.createFromFile(CJK_FONT);
-        } catch (Throwable ignored) {
+    private void startIdle() {
+        handler.removeCallbacks(idleRepeat);
+        if (quizMode && !finishedChoice) {
+            handler.postDelayed(idleRepeat, IDLE_MS);
         }
     }
 
-    private TextView label(String s, float size, int color, boolean bold) {
-        if (cjk == Typeface.DEFAULT) {
-            initCjk();
+    private void resetIdle() {
+        handler.removeCallbacks(idleRepeat);
+        if (quizMode && !finishedChoice && !answering) {
+            handler.postDelayed(idleRepeat, IDLE_MS);
         }
+    }
+
+    // ---------- 字体 / 尺寸 ----------
+
+    private TextView label(String s, float size, int color, boolean bold) {
         TextView v = new TextView(this);
         v.setText(s);
         v.setTextSize(TypedValue.COMPLEX_UNIT_DIP, size);
         v.setTextColor(color);
-        v.setTypeface(cjk, bold ? Typeface.BOLD : Typeface.NORMAL);
+        v.setTypeface(PetUi.cjk(this), bold ? Typeface.BOLD : Typeface.NORMAL);
         v.setGravity(Gravity.CENTER);
         return v;
+    }
+
+    private static LinearLayout.LayoutParams wrapLp() {
+        return new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
     }
 
     private int dp(float v) {

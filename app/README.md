@@ -12,27 +12,37 @@ app/src/com/dsh/tvhud/
 ├── usage/    UsageDay / HistoryStore / Categories / PlayEntry / MainActivity / TimelineView
 ├── report/   ReportsActivity / ReportEngine / 周月年 Canvas / ChartAxis / BarStack
 ├── hud/      HudService / HudView / CtrlReceiver / BootReceiver / BootAccessibilityService
-└── pet/      PetActivity / PetGateActivity / PetSettingsActivity / PetView / PetEngine / Budget
+└── pet/      PetActivity / PetGate / PetSettings / PetReport / PetView / PetEngine / Shop / PetStore
 ```
 
 依赖方向：`home → {usage, report, pet, hud}`；`hud → {usage, pet}`；`usage` / `report` 会
 `startService(HudService)` 并读 `peekUsage()/peekPlays()`（Android Service 边界允许的反向）；
 `report → usage`；`pet → usage`（只读 `dayStartOf`）。纯逻辑（`PetEngine` / `Budget` /
-`QuizBank` / `ReportMath`）不 import Android。新增功能先决定落在哪个包，再补
+`QuizBank` / `Shop` / `PetJournal` / `ReportMath`）不 import Android。新增功能先决定落在哪个包，再补
 `tests/java/<包>/` 用例。
 
-## 电子宠物（P0）
+## 电子宠物（P0/P1/P2）
 
-- 打开电视看视频时，`HudService` 按 `Categories.VIDEO` 累计场次：15 分钟一场、每天 3 场；
-  剩 3 分钟 / 1 分钟弹右上角气泡，到点由 `PetGateActivity` 全屏拦截。
-- 两个出口：休息（+3 星、记 1 场）或答 3 题对 2 题（本场 +5 分钟，每天最多 2 次，
-  3 场用完不再出题）。
-- 宠物房间：吃饭/喝水/摸摸/洗澡/刷牙，体重 0–100 影响体型，牙齿 0–100 影响表情，
-  Lv 10 换牙；Lv 3/10/24 解锁帽子/衣服/翅膀；Lv 3/10/24/45 进化。
+- **时间规则**：看视频时 `HudService` 只累计 `Categories.VIDEO`：默认 15 分钟一场、每天 3 场
+  （周末自动 +1，可关）；剩 3 分钟 / 1 分钟弹右上角气泡，到点由 `PetGateActivity` 全屏拦截。
+  两个出口：休息（+3 星、记 1 场）或答 3 题对 2 题（本场 +5 分钟，每天最多 N 次，3 场用完不再出题）。
+- **答题**：语音读题 + 4 个大卡片，第一次答错还有一次机会，答错不惩罚、无失败音效。
+- **照顾**：吃饭/喝水/摸摸/洗澡/刷牙；体重 0–100 影响体型，牙齿 0–100 影响表情，Lv 10 换牙。
+- **商店/衣柜**：星星买狗粮/零食/甜食、帽子/衣服/翅膀/房间装饰；原价退；装饰最多摆 3 个。
+- **成长**：Lv = EXP/10，Lv 3/10/24/45 进化；Lv24 按偏好分智慧/疾风/美食三线（30 星可换）；
+  Lv45 后每 7 天检定变异（6 部位 × 6 配色，进图鉴）。
+- **退化（可逆）**：连续 3 天不达标只回退外观 2 天、EXP −20 不掉阶；次日达标即恢复；
+  连续 2 天没照顾会躲进被子，一次互动就回来。家长可整体关闭。
+- **家长设置**：4 位 PIN（默认 2580）；每场时长 / 每天场次 / 答题续时与次数 / 周末加场 /
+  允许时段（只拦新开场）/ 退化 / 温和模式 / 家长时间 / 临时加场 / 宠物周报 / 重置。
+- **宠物周报**：本周观看时长、场次、按时休息、超时、答题正确率、成长/分支/变异；
+  只统计时长与行为，不记录看了什么、不上传。
 - 调试广播（`adb shell am broadcast -a com.dsh.tvhud.PET_...`）：
-  `PET_GATE` 强制到点、`PET_NEAR_END --ei seconds 180` 模拟剩 3 分钟、
-  `PET_DEBUG --ei exp 100 --ei stars 40` 改数值、`PET_PARENT_ON/OFF` 家长时间、
-  `PET_RESET` 重置、`PET_SETTINGS` 打开家长设置。
+  `PET_GATE [--ez window true]` 强制到点/时间窗、`PET_NEAR_END --ei seconds 180` 模拟剩 3 分钟、
+  `PET_DEBUG --ei exp 450 --ei stars 200` 改数值、`PET_SHOP --es item hat_cap` 买/喂、
+  `PET_BRANCH --ei branch 1`、`PET_MUTATE`、`PET_DEGRADE`、`PET_GIVE_STARS --ei stars 50`、
+  `PET_WINDOW_ON/OFF`、`PET_WEEKEND_ON/OFF`、`PET_GENTLE_ON/OFF`、`PET_ROOM`、`PET_REPORT`、
+  `PET_STATE`（当前存档打到 logcat）、`PET_PARENT_ON/OFF`、`PET_RESET`、`PET_SETTINGS`。
 
 ## 页面与组件
 
@@ -43,10 +53,12 @@ app/src/com/dsh/tvhud/
 | `ReportsActivity` | 使用报告：周报 / 月报 / 年报三套 Canvas 布局；←→ 回看、↑↓ 切粒度、OK 回本期；长按只认第一下，加载中保留上一帧，失败按 OK 重试 |
 | `report/ReportEngine` / `ReportMath` / `DayAgg` / `Report` | 365 天归档聚合、上期对比、周期条与洞察；后台线程取快照聚合，纯计算与 Android 读取分层 |
 | `report/ChartAxis` / `BarStack` | 纵轴刻度与堆叠柱几何（周/月/年共用，纯函数，`tests/java` 覆盖） |
-| `pet/PetActivity` | 宠物房间：2.5D 宠物 + 吃饭/喝水/摸摸/洗澡/刷牙 + 换装 + 等级/星星 |
-| `pet/PetGateActivity` | 场次到点拦截：休息 / 答 3 题续 5 分钟；60 秒默认休息；返回键无效 |
-| `pet/PetSettingsActivity` | 家长设置：4 位 PIN（默认 2580）+ 每场时长 / 场次 / 答题续时 / 家长时间 / 重置 |
-| `pet/PetView` / `PetState` / `PetEngine` / `Budget` / `QuizBank` / `PetStore` / `PetBubble` | 2.5D 骨骼渲染、纯逻辑、场次预算、题库、存档、观看中预警气泡 |
+| `pet/PetActivity` | 宠物房间：2.5D 宠物 + 照顾 / 商店 / 衣柜 / 房间 四个分区 + 等级/星星 |
+| `pet/PetGateActivity` | 场次到点拦截：休息 / 答 3 题续 5 分钟；60 秒默认休息；时间窗模式；返回键无效 |
+| `pet/PetSettingsActivity` | 家长设置：4 位 PIN（默认 2580）+ 时间规则 / 行为开关 / 周报入口 / 重置 |
+| `pet/PetReportActivity` | 宠物周报：本周时长、场次、按时休息、超时、答题正确率、进化进度 |
+| `pet/PetView` / `PetState` / `PetEngine` / `Budget` / `QuizBank` / `PetStore` / `PetBubble` | 2.5D 骨骼渲染（分支/变异/退化/装备/装饰）、纯逻辑、场次预算、题库、存档、观看中预警气泡 |
+| `pet/Shop` / `PetJournal` / `PetUi` / `PetIconView` | 商店与衣柜纯逻辑、天级流水、统一视觉、Canvas 小图标 |
 | `hud/HudService` | 唯一业务服务：1s 采样使用状态、屏保时挂悬浮窗、按天归档、ADB/无障碍自愈；宠物场次计时/预警/拦截也在这里 |
 | `hud/HudView` | 自绘角标：开机状态 / 遥控器电量 / 今日使用长条（无文字，颜色即图例） |
 | `usage/UsageDay` | 当天分段模型（`[start,end)` + 类别），落盘 `SharedPreferences("hud")` |
@@ -58,7 +70,7 @@ app/src/com/dsh/tvhud/
 ## 数据在哪
 
 - 当天：`SharedPreferences("hud")` 的 `usage_day_start` / `usage_scheme` / `usage_json` / `play_day_start` / `play_json` / `adb_keep` / `usage_preview`
-- 宠物：`SharedPreferences("pet")`（状态 / 场次预算 / 家长设置）；题库 `assets/quiz.json`
+- 宠物：`SharedPreferences("pet")`（状态 / 场次预算 / 家长设置 / 14 天流水）；题库 `assets/quiz.json`
 - 历史：`/sdcard/Android/data/com.dsh.tvhud/files/history/yyyy-MM-dd.json`（adb 可读，卸载即清）
 - 播放内容唯一可靠来源：`/sdcard/miio/miothost.txt`（会轮转，必须运行时就抓）
 
@@ -108,7 +120,8 @@ bash ../.agents/skills/tv-pilot/scripts/app.sh install   # 部署（权限/无�
 ## 测试
 
 - `make test`：离线。纯计算逻辑在 `tests/java/report`（周期/聚合/洞察/几何）和
-  `tests/java/pet`（等级/照顾/场次预算/题库）里用纯 Java 断言跑，不需要 Android/电视；
+  `tests/java/pet`（等级/照顾/场次预算/题库/商店/分支/退化/变异/时间窗/流水）里用纯 Java
+  断言跑，不需要 Android/电视；
   改哪层先补对应包的用例。
 - `make e2e`：真机冒烟。装当前 APK → 打开报告 → 周/月/年导航 + 回本期 + 返回，
   断言 `report load`/无崩溃/无 `REPORT_INVARIANT`，截图落 `.build/e2e/`。

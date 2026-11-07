@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.dsh.tvhud"
-    android:versionCode="16"
-    android:versionName="1.15">
+    android:versionCode="17"
+    android:versionName="1.16">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="22" />
 
@@ -64,6 +64,11 @@
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
             android:launchMode="singleTop"
             android:exported="false" />
+        <activity
+            android:name="com.dsh.tvhud.pet.PetReportActivity"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:launchMode="singleTop"
+            android:exported="false" />
 
         <service
             android:name="com.dsh.tvhud.hud.HudService"
@@ -99,6 +104,20 @@
                 <action android:name="com.dsh.tvhud.PET_DEBUG" />
                 <action android:name="com.dsh.tvhud.PET_PARENT_ON" />
                 <action android:name="com.dsh.tvhud.PET_PARENT_OFF" />
+                <action android:name="com.dsh.tvhud.PET_SHOP" />
+                <action android:name="com.dsh.tvhud.PET_BRANCH" />
+                <action android:name="com.dsh.tvhud.PET_MUTATE" />
+                <action android:name="com.dsh.tvhud.PET_DEGRADE" />
+                <action android:name="com.dsh.tvhud.PET_GIVE_STARS" />
+                <action android:name="com.dsh.tvhud.PET_WINDOW_ON" />
+                <action android:name="com.dsh.tvhud.PET_WINDOW_OFF" />
+                <action android:name="com.dsh.tvhud.PET_WEEKEND_ON" />
+                <action android:name="com.dsh.tvhud.PET_WEEKEND_OFF" />
+                <action android:name="com.dsh.tvhud.PET_GENTLE_ON" />
+                <action android:name="com.dsh.tvhud.PET_GENTLE_OFF" />
+                <action android:name="com.dsh.tvhud.PET_ROOM" />
+                <action android:name="com.dsh.tvhud.PET_REPORT" />
+                <action android:name="com.dsh.tvhud.PET_STATE" />
             </intent-filter>
         </receiver>
 

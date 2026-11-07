@@ -13,7 +13,7 @@ import java.io.InputStreamReader;
  * 宠物存档：SharedPreferences("pet") 逐字段读写 + 跨天结算。
  *
  * 为什么不塞 JSON：这是纯 Java 小 App，逐字段读写更直观，也避免和归档 JSON 的 schema
- * 混淆。纯逻辑仍然在 {@link PetEngine} / {@link Budget}，这里只做 Android IO。
+ * 混淆。纯逻辑仍然在 {@link PetEngine} / {@link Budget} / {@link Shop}，这里只做 Android IO。
  */
 public final class PetStore {
     public static final String PREFS = "pet";
@@ -35,7 +35,24 @@ public final class PetStore {
     private static final String K_QUIZ_CORRECT = "quiz_correct";
     private static final String K_TOTAL_CARE = "total_care";
     private static final String K_TOTAL_QUIZ = "total_quiz";
+    private static final String K_TOTAL_REST = "total_rest";
+    private static final String K_TOTAL_EAT = "total_eat";
+    private static final String K_STARS_EARNED = "stars_earned";
     private static final String K_STREAK = "streak";
+    private static final String K_BAD_DAYS = "bad_days";
+    private static final String K_CARE_MISS = "care_miss";
+    private static final String K_DEGRADE_UNTIL = "degrade_until";
+    private static final String K_DEGRADE_STAGE = "degrade_stage";
+    private static final String K_BRANCH = "branch";
+    private static final String K_MUT_A = "mutation_a";
+    private static final String K_MUT_B = "mutation_b";
+    private static final String K_MUT_PAL = "mutation_palette";
+    private static final String K_MUT_COUNT = "mutation_count";
+    private static final String K_MUT_SEEN = "mutation_seen";
+    private static final String K_LAST_MUT = "last_mutation";
+    private static final String K_CELEBRATE = "celebrate_evolution";
+    private static final String K_OWNED = "owned";
+    private static final String K_DECOR = "decor";
     private static final String K_LAST_SETTLE = "last_settle";
     private static final String K_LAST_SEEN = "last_seen";
     private static final String K_TEETHING_UNTIL = "teething_until";
@@ -49,13 +66,23 @@ public final class PetStore {
     private static final String K_SESSIONS_USED = "sessions_used";
     private static final String K_EXT_TODAY = "extensions_today";
     private static final String K_EXT_MS = "extension_ms";
+    private static final String K_EXTRA_SESSIONS = "extra_sessions";
     private static final String K_GATE_OPEN = "gate_open";
+    private static final String K_GATE_REASON = "gate_reason";
     private static final String K_PARENT_MODE = "parent_mode";
 
     private static final String K_CFG_SESSION_MIN = "cfg_session_minutes";
     private static final String K_CFG_MAX_SESSIONS = "cfg_max_sessions";
     private static final String K_CFG_QUIZ = "cfg_quiz_enabled";
+    private static final String K_CFG_EXTENSIONS = "cfg_extensions";
+    private static final String K_CFG_WEEKEND = "cfg_weekend_bonus";
+    private static final String K_CFG_DEGRADE = "cfg_degrade";
+    private static final String K_CFG_GENTLE = "cfg_gentle";
+    private static final String K_CFG_WINDOW_ON = "cfg_window_on";
+    private static final String K_CFG_WINDOW_START = "cfg_window_start";
+    private static final String K_CFG_WINDOW_END = "cfg_window_end";
     private static final String K_CFG_PIN = "cfg_pin";
+    private static final String K_JOURNAL = "journal";
 
     /** 同进程内 Activity 改存档后通知 Service 重新加载，避免两套内存状态打架。 */
     private static volatile long sVersion = 1L;
@@ -83,18 +110,38 @@ public final class PetStore {
         boolean rolled = false;
         if (budget.dayStart == 0L) {
             budget.dayStart = today;
+            applyConfig(ctx, budget, today);
             rolled = true;
         } else if (budget.dayStart != today) {
-            PetEngine.settleDay(state, budget.sessionsUsed, budget.maxSessions,
-                    budget.gateOpen, today);
+            int used = budget.sessionsUsed;
+            int cap = budget.maxSessions;
+            boolean overtime = budget.gateOpen && budget.gateReason == Budget.GATE_NORMAL;
+            long endedDay = budget.dayStart;
+            int quizCorrect = state.quizCorrect;
+            int quizTotal = state.quizToday;
+            int expBefore = state.exp;
+            PetEngine.Result r = PetEngine.settleDay(state, used, cap, overtime, today,
+                    degradeEnabled(ctx));
+            PetJournal.Day day = new PetJournal.Day(endedDay);
+            day.sessions = used;
+            day.extensions = budget.extensionsToday;
+            day.quizCorrect = quizCorrect;
+            day.quizTotal = quizTotal;
+            day.overtime = overtime;
+            day.expGain = state.exp - expBefore;
+            appendJournal(ctx, day);
             state.rollDay(today);
             budget.rollDay(today);
+            applyConfig(ctx, budget, today);
             rolled = true;
+            if (r.degraded) {
+                state.celebrateEvolution = true;
+            }
         } else if (state.dayStart == 0L) {
             state.dayStart = today;
             rolled = true;
         } else if (state.dayStart != today) {
-            PetEngine.settleDay(state, 0, budget.maxSessions, false, today);
+            PetEngine.settleDay(state, 0, budget.maxSessions, false, today, degradeEnabled(ctx));
             state.rollDay(today);
             rolled = true;
         }
@@ -131,7 +178,24 @@ public final class PetStore {
         s.quizCorrect = sp.getInt(K_QUIZ_CORRECT, 0);
         s.totalCare = sp.getInt(K_TOTAL_CARE, 0);
         s.totalQuizCorrect = sp.getInt(K_TOTAL_QUIZ, 0);
+        s.totalRest = sp.getInt(K_TOTAL_REST, 0);
+        s.totalEat = sp.getInt(K_TOTAL_EAT, 0);
+        s.starsEarned = sp.getInt(K_STARS_EARNED, 0);
         s.streakDays = sp.getInt(K_STREAK, 0);
+        s.badDays = sp.getInt(K_BAD_DAYS, 0);
+        s.careMissDays = sp.getInt(K_CARE_MISS, 0);
+        s.degradeUntil = sp.getLong(K_DEGRADE_UNTIL, 0L);
+        s.degradeStage = sp.getInt(K_DEGRADE_STAGE, PetState.STAGE_EGG);
+        s.branch = sp.getInt(K_BRANCH, PetState.BRANCH_NONE);
+        s.mutationPartA = sp.getInt(K_MUT_A, 0);
+        s.mutationPartB = sp.getInt(K_MUT_B, 0);
+        s.mutationPalette = sp.getInt(K_MUT_PAL, 0);
+        s.mutationCount = sp.getInt(K_MUT_COUNT, 0);
+        s.mutationsSeen = sp.getString(K_MUT_SEEN, "");
+        s.lastMutationCheck = sp.getLong(K_LAST_MUT, 0L);
+        s.celebrateEvolution = sp.getBoolean(K_CELEBRATE, false);
+        s.owned = sp.getString(K_OWNED, "");
+        s.decor = sp.getString(K_DECOR, "");
         s.lastSettleMs = sp.getLong(K_LAST_SETTLE, now);
         s.lastSeenMs = sp.getLong(K_LAST_SEEN, now);
         s.teethingUntil = sp.getLong(K_TEETHING_UNTIL, 0L);
@@ -139,7 +203,29 @@ public final class PetStore {
         s.hat = sp.getString(K_HAT, "");
         s.clothes = sp.getString(K_CLOTHES, "");
         s.wings = sp.getString(K_WINGS, "");
+        migrate(s);
         return s;
+    }
+
+    /** v1→v2：把 P0 已经穿在身上的装备补进衣柜，避免升级后衣服「消失」。 */
+    private static void migrate(PetState s) {
+        if (s.schema >= PetState.SCHEMA) {
+            return;
+        }
+        seedOwned(s, s.hat, "hat_");
+        seedOwned(s, s.clothes, "clothes_");
+        seedOwned(s, s.wings, "wings_");
+        if (s.starsEarned < s.stars) {
+            s.starsEarned = s.stars;
+        }
+        s.schema = PetState.SCHEMA;
+    }
+
+    private static void seedOwned(PetState s, String slot, String prefix) {
+        if (slot == null || slot.isEmpty()) {
+            return;
+        }
+        s.addOwned(prefix + slot);
     }
 
     public static void saveState(Context ctx, PetState s) {
@@ -160,7 +246,24 @@ public final class PetStore {
         e.putInt(K_QUIZ_CORRECT, s.quizCorrect);
         e.putInt(K_TOTAL_CARE, s.totalCare);
         e.putInt(K_TOTAL_QUIZ, s.totalQuizCorrect);
+        e.putInt(K_TOTAL_REST, s.totalRest);
+        e.putInt(K_TOTAL_EAT, s.totalEat);
+        e.putInt(K_STARS_EARNED, s.starsEarned);
         e.putInt(K_STREAK, s.streakDays);
+        e.putInt(K_BAD_DAYS, s.badDays);
+        e.putInt(K_CARE_MISS, s.careMissDays);
+        e.putLong(K_DEGRADE_UNTIL, s.degradeUntil);
+        e.putInt(K_DEGRADE_STAGE, s.degradeStage);
+        e.putInt(K_BRANCH, s.branch);
+        e.putInt(K_MUT_A, s.mutationPartA);
+        e.putInt(K_MUT_B, s.mutationPartB);
+        e.putInt(K_MUT_PAL, s.mutationPalette);
+        e.putInt(K_MUT_COUNT, s.mutationCount);
+        e.putString(K_MUT_SEEN, s.mutationsSeen == null ? "" : s.mutationsSeen);
+        e.putLong(K_LAST_MUT, s.lastMutationCheck);
+        e.putBoolean(K_CELEBRATE, s.celebrateEvolution);
+        e.putString(K_OWNED, s.owned == null ? "" : s.owned);
+        e.putString(K_DECOR, s.decor == null ? "" : s.decor);
         e.putLong(K_LAST_SETTLE, s.lastSettleMs);
         e.putLong(K_LAST_SEEN, s.lastSeenMs);
         e.putLong(K_TEETHING_UNTIL, s.teethingUntil);
@@ -182,11 +285,14 @@ public final class PetStore {
         b.sessionsUsed = sp.getInt(K_SESSIONS_USED, 0);
         b.extensionsToday = sp.getInt(K_EXT_TODAY, 0);
         b.extensionMs = sp.getLong(K_EXT_MS, 0L);
+        b.extraSessions = sp.getInt(K_EXTRA_SESSIONS, 0);
         b.gateOpen = sp.getBoolean(K_GATE_OPEN, false);
+        b.gateReason = sp.getInt(K_GATE_REASON, Budget.GATE_NORMAL);
         b.parentMode = sp.getBoolean(K_PARENT_MODE, false);
-        b.sessionMinutes = sp.getInt(K_CFG_SESSION_MIN, Budget.DEFAULT_SESSION_MINUTES);
-        b.maxSessions = sp.getInt(K_CFG_MAX_SESSIONS, Budget.DEFAULT_MAX_SESSIONS);
-        b.quizEnabled = sp.getBoolean(K_CFG_QUIZ, true);
+        readConfig(ctx, b);
+        long refDay = b.dayStart > 0L ? b.dayStart : System.currentTimeMillis();
+        b.maxSessions = Budget.effectiveMaxSessions(b.configuredMaxSessions, b.weekendBonus, refDay)
+                + b.extraSessions;
         return b;
     }
 
@@ -197,7 +303,9 @@ public final class PetStore {
         e.putInt(K_SESSIONS_USED, b.sessionsUsed);
         e.putInt(K_EXT_TODAY, b.extensionsToday);
         e.putLong(K_EXT_MS, b.extensionMs);
+        e.putInt(K_EXTRA_SESSIONS, b.extraSessions);
         e.putBoolean(K_GATE_OPEN, b.gateOpen);
+        e.putInt(K_GATE_REASON, b.gateReason);
         e.putBoolean(K_PARENT_MODE, b.parentMode);
         e.apply();
         sVersion++;
@@ -206,6 +314,28 @@ public final class PetStore {
     public static void save(Context ctx, PetState s, Budget b) {
         saveState(ctx, s);
         saveBudget(ctx, b);
+    }
+
+    /** 把家长配置灌进内存里的 Budget；跨天/改配置后调一次。 */
+    public static void applyConfig(Context ctx, Budget b, long refDay) {
+        readConfig(ctx, b);
+        b.maxSessions = Budget.effectiveMaxSessions(b.configuredMaxSessions, b.weekendBonus, refDay)
+                + b.extraSessions;
+        if (b.maxSessions < b.sessionsUsed) {
+            b.maxSessions = b.sessionsUsed;
+        }
+    }
+
+    private static void readConfig(Context ctx, Budget b) {
+        SharedPreferences sp = ctx.getSharedPreferences(PREFS, 0);
+        b.sessionMinutes = sp.getInt(K_CFG_SESSION_MIN, Budget.DEFAULT_SESSION_MINUTES);
+        b.configuredMaxSessions = sp.getInt(K_CFG_MAX_SESSIONS, Budget.DEFAULT_MAX_SESSIONS);
+        b.quizEnabled = sp.getBoolean(K_CFG_QUIZ, true);
+        b.extensionsPerDay = sp.getInt(K_CFG_EXTENSIONS, Budget.DEFAULT_EXTENSIONS);
+        b.weekendBonus = sp.getBoolean(K_CFG_WEEKEND, true);
+        b.windowEnabled = sp.getBoolean(K_CFG_WINDOW_ON, false);
+        b.windowStartMin = sp.getInt(K_CFG_WINDOW_START, 17 * 60);
+        b.windowEndMin = sp.getInt(K_CFG_WINDOW_END, 20 * 60);
     }
 
     // ---------- 设置 ----------
@@ -217,7 +347,7 @@ public final class PetStore {
 
     public static void setSessionMinutes(Context ctx, int minutes) {
         ctx.getSharedPreferences(PREFS, 0).edit()
-                .putInt(K_CFG_SESSION_MIN, Math.max(5, Math.min(20, minutes))).apply();
+                .putInt(K_CFG_SESSION_MIN, Math.max(10, Math.min(20, minutes))).apply();
         sVersion++;
     }
 
@@ -228,7 +358,7 @@ public final class PetStore {
 
     public static void setMaxSessions(Context ctx, int n) {
         ctx.getSharedPreferences(PREFS, 0).edit()
-                .putInt(K_CFG_MAX_SESSIONS, Math.max(1, Math.min(6, n))).apply();
+                .putInt(K_CFG_MAX_SESSIONS, Math.max(1, Math.min(5, n))).apply();
         sVersion++;
     }
 
@@ -239,6 +369,76 @@ public final class PetStore {
     public static void setQuizEnabled(Context ctx, boolean on) {
         ctx.getSharedPreferences(PREFS, 0).edit().putBoolean(K_CFG_QUIZ, on).apply();
         sVersion++;
+    }
+
+    public static int extensionsPerDay(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, 0)
+                .getInt(K_CFG_EXTENSIONS, Budget.DEFAULT_EXTENSIONS);
+    }
+
+    public static void setExtensionsPerDay(Context ctx, int n) {
+        ctx.getSharedPreferences(PREFS, 0).edit()
+                .putInt(K_CFG_EXTENSIONS, Math.max(0, Math.min(3, n))).apply();
+        sVersion++;
+    }
+
+    public static boolean weekendBonus(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, 0).getBoolean(K_CFG_WEEKEND, true);
+    }
+
+    public static void setWeekendBonus(Context ctx, boolean on) {
+        ctx.getSharedPreferences(PREFS, 0).edit().putBoolean(K_CFG_WEEKEND, on).apply();
+        sVersion++;
+    }
+
+    /** 退化机制总开关：敏感孩子可关；关掉后连续不达标只影响当天成长值。 */
+    public static boolean degradeEnabled(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, 0).getBoolean(K_CFG_DEGRADE, true);
+    }
+
+    public static void setDegradeEnabled(Context ctx, boolean on) {
+        ctx.getSharedPreferences(PREFS, 0).edit().putBoolean(K_CFG_DEGRADE, on).apply();
+        sVersion++;
+    }
+
+    /** 温和模式：不重复拉回拦截页（只提醒一次），建议和关退化一起用。 */
+    public static boolean gentleMode(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, 0).getBoolean(K_CFG_GENTLE, false);
+    }
+
+    public static void setGentleMode(Context ctx, boolean on) {
+        ctx.getSharedPreferences(PREFS, 0).edit().putBoolean(K_CFG_GENTLE, on).apply();
+        sVersion++;
+    }
+
+    public static boolean windowEnabled(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, 0).getBoolean(K_CFG_WINDOW_ON, false);
+    }
+
+    public static void setWindowEnabled(Context ctx, boolean on) {
+        ctx.getSharedPreferences(PREFS, 0).edit().putBoolean(K_CFG_WINDOW_ON, on).apply();
+        sVersion++;
+    }
+
+    public static int windowStart(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, 0).getInt(K_CFG_WINDOW_START, 17 * 60);
+    }
+
+    public static int windowEnd(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, 0).getInt(K_CFG_WINDOW_END, 20 * 60);
+    }
+
+    public static void setWindow(Context ctx, int startMin, int endMin) {
+        ctx.getSharedPreferences(PREFS, 0).edit()
+                .putInt(K_CFG_WINDOW_START, clampMinute(startMin))
+                .putInt(K_CFG_WINDOW_END, clampMinute(endMin))
+                .apply();
+        sVersion++;
+    }
+
+    private static int clampMinute(int m) {
+        int v = m % 1440;
+        return v < 0 ? v + 1440 : v;
     }
 
     public static boolean parentMode(Context ctx) {
@@ -259,6 +459,18 @@ public final class PetStore {
             return;
         }
         ctx.getSharedPreferences(PREFS, 0).edit().putString(K_CFG_PIN, pin).apply();
+        sVersion++;
+    }
+
+    // ---------- 宠物流水（周报） ----------
+
+    public static String journal(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, 0).getString(K_JOURNAL, "");
+    }
+
+    public static void appendJournal(Context ctx, PetJournal.Day day) {
+        ctx.getSharedPreferences(PREFS, 0).edit()
+                .putString(K_JOURNAL, PetJournal.append(journal(ctx), day)).apply();
         sVersion++;
     }
 
@@ -301,9 +513,7 @@ public final class PetStore {
         PetState s = PetEngine.newPet(System.currentTimeMillis(), todayStart());
         Budget b = new Budget();
         b.dayStart = s.dayStart;
-        b.sessionMinutes = sessionMinutes(ctx);
-        b.maxSessions = maxSessions(ctx);
-        b.quizEnabled = quizEnabled(ctx);
+        applyConfig(ctx, b, b.dayStart);
         save(ctx, s, b);
         return s;
     }

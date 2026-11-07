@@ -25,7 +25,7 @@
 │  usage/   UsageDay / HistoryStore / MainActivity / 台账视图   │
 │  report/  ReportsActivity / 周月年 Canvas / ReportEngine      │
 │  hud/     HudService / HudView / 广播 / 无障碍                │
-│  pet/     PetActivity / PetGateActivity / PetEngine / Budget  │
+│  pet/     Pet 房间/商店/衣柜 / 渲染 / 引擎 / 商店 / 存档       │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -49,12 +49,12 @@
 | `usage` | 使用采样模型、归档、台账页 | 报告聚合 |
 | `report` | 周/月/年聚合与 Canvas 视图 | 采样/归档写盘 |
 | `hud` | 常驻 Service、屏保角标、广播、无障碍 | 页面 UI |
-| `pet` | 场次预算、答题、2.5D 渲染、宠物存档 | 使用统计 |
+| `pet` | 场次预算、答题、2.5D 渲染、商店/衣柜/周报、宠物存档 | 使用统计 |
 
 依赖方向：`home → {usage, report, pet, hud}`；`hud → {usage, pet}`；`usage` / `report` 会
 `startService(HudService)` 并读 `peekUsage()/peekPlays()`，这是 Android Service 边界允许的反向；
 `report → usage`；`pet → usage`（只读 `dayStartOf`）。纯逻辑（`PetEngine` / `Budget` / `QuizBank` /
-`ReportMath`）不 import Android。
+`Shop` / `PetJournal` / `ReportMath`）不 import Android。
 
 ## App 层数据流
 
@@ -91,7 +91,7 @@ UsageStatsManager.queryEvents（增量，1s）
 | 新脚本 | `scripts/`，加进 `SKILL.md` 操作索引与 `README.md` 命令表 | 把本机 IP/型号写死 |
 | 新的机器（本机事实） | 重跑 `scripts/setup.sh` | 改 SKILL.md |
 | App 内新页面 | `home/HomeActivity.ITEMS` + `open()` 分发 | 直接改别的页面启动逻辑 |
-| 电子宠物玩法/外观 | `pet/PetEngine` / `pet/Budget` / `pet/PetView` / `pet/QuizBank`（纯逻辑先加 `tests/java/pet/PetCoreTest`） | 把场次/进化逻辑写进 Activity 或 HudService |
+| 电子宠物玩法/外观 | `pet/PetEngine` / `pet/Budget` / `pet/Shop` / `pet/PetView` / `pet/QuizBank`（纯逻辑先加 `tests/java/pet/PetCoreTest` / `PetShopTest`） | 把场次/进化逻辑写进 Activity 或 HudService |
 | 新增一个功能模块 | 在 `app/src/com/dsh/tvhud/` 下新包 + 在本文补依赖方向 + 补测试 | 继续往根包堆文件 |
 | 报告页/聚合 | `ReportsActivity` + `ReportEngine/ReportMath` | 在 View 里另读文件 / 在 onDraw 里重算派生数据 |
 

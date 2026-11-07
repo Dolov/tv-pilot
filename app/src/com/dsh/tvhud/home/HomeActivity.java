@@ -73,7 +73,7 @@ public class HomeActivity extends Activity {
             new Item("今日使用", "时间轴 · 分段明细 · 看了什么", ACTION_TODAY),
             new Item("使用记录", "按天回看，保留最近 365 天", ACTION_HISTORY),
             new Item("使用报告", "周报 · 月报 · 年报，趋势与构成", ACTION_REPORT),
-            new Item("我的宠物", "喂饭 · 喝水 · 换装 · 进化", ACTION_PET),
+            new Item("我的宠物", "商店 · 换装 · 装饰 · 进化", ACTION_PET),
             new Item("AI 语音助手", "用手机说话，问电视看了什么", ACTION_SOON, "即将上线"),
             new Item("设置", "ADB 守护 · 屏保角标", ACTION_SOON, "即将上线"),
     };

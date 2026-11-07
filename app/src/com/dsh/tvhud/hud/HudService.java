@@ -956,7 +956,9 @@ public class HudService extends Service {
         if (petBudget.gateOpen) {
             hidePetBubble();
             long elapsed = SystemClock.elapsedRealtime();
-            if (elapsed - lastPetGateAt > 5000L && petGateLaunches < 12) {
+            // 温和模式只提醒一次，不反复把拦截页拉到最前；普通模式最多 12 次防死循环
+            int maxLaunches = PetStore.gentleMode(this) ? 1 : 12;
+            if (elapsed - lastPetGateAt > 5000L && petGateLaunches < maxLaunches) {
                 launchPetGate();
             }
             return;

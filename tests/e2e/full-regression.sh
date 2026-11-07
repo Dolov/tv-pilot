@@ -6,9 +6,10 @@
 #   2. 今日使用：合计/段数/分类图例/时间轴/明细都渲染出来；
 #   3. 使用记录：能按天回看（落到最近有归档的一天），左右键翻日期；
 #   4. 使用报告：周/月/年三天粒度 + 翻页 + 回本期 + 返回；
-#   5. 屏保角标：HUD 服务在跑、无障碍条目在；
-#   6. 数据侧：归档文件可读、完整性自检无告警、报告不变量无告警；
-#   7. 全程无 FATAL EXCEPTION。
+#   5. 电子宠物：房间 + 照顾/商店/衣柜/房间四个分区切换 + 返回；
+#   6. 屏保角标：HUD 服务在跑、无障碍条目在；
+#   7. 数据侧：归档文件可读、完整性自检无告警、报告不变量无告警；
+#   8. 全程无 FATAL EXCEPTION。
 #
 # 用法：
 #   bash tests/e2e/full-regression.sh              # 装 .build/out/tv-pilot.apk 再全量跑
@@ -172,6 +173,38 @@ if resumed | grep -q 'com.dsh.tvhud/.home.HomeActivity'; then
   pass "报告页返回键回到首页"
 else
   fail "报告页返回键没回首页" "$(resumed)"
+fi
+
+# ---------- 5. 电子宠物（房间 / 商店 / 衣柜 / 装饰） ----------
+step "电子宠物"
+for i in 1 2 3 4 5 6; do key 19 0.2; done
+for i in 1 2 3; do key 20 0.4; done
+key 23 3.5
+if resumed | grep -q 'com.dsh.tvhud/.pet.PetActivity'; then
+  pass "宠物房间打开（PetActivity）"
+else
+  fail "宠物房间没打开" "$(resumed)"
+fi
+screenshot "05-pet-care"
+
+# 底部 Tab：照顾 → 商店 → 衣柜 → 房间（面板切换不重建、不崩溃）
+key 20 0.8
+key 22 0.8
+key 23 1.6
+screenshot "05-pet-shop"
+key 20 0.8
+key 22 0.8
+key 23 1.6
+screenshot "05-pet-wardrobe"
+key 20 0.8
+key 22 0.8
+key 23 1.6
+screenshot "05-pet-decor"
+key 4 2.2
+if resumed | grep -q 'com.dsh.tvhud/.home.HomeActivity'; then
+  pass "宠物房间返回键回到首页"
+else
+  fail "宠物房间返回键没回首页" "$(resumed)"
 fi
 
 # ---------- 5. 屏保角标（服务 + 无障碍） ----------
