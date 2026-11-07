@@ -193,17 +193,46 @@ test_ensure_tv() {
   fi
 }
 
-# ---------- 用例 6：报告核心纯 Java 单元测试 ----------
+# ---------- 用例 6：parent-pin --json（家长设置密码） ----------
+test_parent_pin() {
+  local name="parent-pin.sh --json → PIN + 免限卡状态"
+  local out rc msg
+  out="$(run_limited bash "$SKILL/scripts/parent-pin.sh" --json 2>"$TMP/pin.err")"
+  rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    fail_case "$name" "退出码 ${rc}：$(tr '\n' ' ' <"$TMP/pin.err" | cut -c1-200)"
+    return
+  fi
+  if msg="$(printf '%s' "$out" | python3 -c '
+import json, sys
+
+d = json.load(sys.stdin)
+pin = str(d.get("pin") or "")
+assert len(pin) == 4 and pin.isdigit(), "pin=%r 不是 4 位数字" % (pin,)
+src = str(d.get("pin_source") or "")
+assert src in ("default", "local", "unknown"), "pin_source=%r" % (src,)
+assert d.get("default_pin") == pin or src == "local", "default_pin 与 pin 不一致"
+fp = d.get("free_pass_today", 0)
+assert int(fp) == 1793980800000, "free_pass_today=%r" % (fp,)
+print("pin=%s source=%s free_pass=%s" % (pin, src, fp))
+' 2>&1)"; then
+    pass_case "${name}（${msg}）"
+  else
+    fail_case "$name" "$msg"
+  fi
+}
+
+# ---------- 用例 7：报告核心纯 Java 单元测试 ----------
 # 覆盖 ReportPeriod / ReportMath / DayAgg / BarStack / PlayEntry 等纯逻辑；
 # 需要可用的 javac（优先 PATH，其次 skill 的 .tools JDK），没有就 SKIP 而不是 FAIL。
 test_report_core_java() {
-  local name="报告核心单元测试（tests/java）"
+  local name="核心单元测试（tests/java）"
   local out rc
   out="$(bash "$ROOT/tests/java/run.sh" 2>&1)"
   rc=$?
   case "$rc" in
     0)
-      pass_case "${name}（$(printf '%s' "$out" | grep -m1 '^用例 PASS' || echo '全部通过')）"
+      pass_case "${name}（$(printf '%s' "$out" | grep '^用例 PASS' | tr '\n' ' ' || echo '全部通过')）"
       ;;
     2)
       skip_case "${name}（$(printf '%s' "$out" | head -1)）"
@@ -219,6 +248,7 @@ test_remote_battery
 test_tv_state
 test_apps_inventory
 test_ensure_tv
+test_parent_pin
 test_report_core_java
 
 printf '\n== 汇总 ==\n'

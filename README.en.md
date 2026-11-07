@@ -2,12 +2,12 @@
 
 [中文](README.md) | English
 
-Control a TV over **LAN ADB** (tested on Xiaomi / Redmi MIUI TV; other Android TVs can be onboarded through device profiles): discover devices without a cable, run read-only probes, configure kids mode and viewing-time limits, remove ad components, sideload third-party APKs, read the remote's battery level, measure TV usage time and watch history — and run a small self-built app "**TV HUD**" on the TV (screensaver corner badge + daily usage ledger + usage history).
+Control a TV over **LAN ADB** (tested on Xiaomi / Redmi MIUI TV; other Android TVs can be onboarded through device profiles): discover devices without a cable, run read-only probes, configure kids mode and viewing-time limits, remove ad components, sideload third-party APKs, read the remote's battery level, measure TV usage time and watch history — and run a small self-built app "**tv-pilot**" on the TV (screensaver corner badge + daily usage ledger + usage history).
 
 The project has two layers:
 
 - **`.agents/skills/tv-pilot/`**: the skill for AI coding agents (scripts + reference docs + evals + brand extension points). Entry point: [SKILL.md](.agents/skills/tv-pilot/SKILL.md); human-facing install/structure notes: [skill README](.agents/skills/tv-pilot/README.md).
-- **`tvhud/`**: the app that actually runs on the TV (plain Java + system APIs, no Gradle/Android Studio; `build.sh` produces the APK directly).
+- **`app/`**: the app that actually runs on the TV (plain Java + system APIs, no Gradle/Android Studio; `build.sh` produces the APK directly).
 
 ## Quick start
 
@@ -23,10 +23,10 @@ bash scripts/usage.sh              # how long and what was watched today
 
 On the TV, enable ADB debugging first (`Settings → Account & security → Security → ADB debugging`; some firmware only starts listening on 5555 after a reboot). Approve the authorization prompt on the TV the first time you connect.
 
-## What TV HUD does
+## What tv-pilot does
 
 - A three-line badge in the top-right corner of the screensaver: uptime / remote battery / today's usage bar (a 24-hour timeline colored by category)
-- Opening the app shows a home menu: Today's usage / Usage history (browse day by day, kept for 365 days) / AI voice assistant and Settings (coming soon)
+- Opening the app shows a home menu: Today's usage / Usage history (browse day by day, kept for 365 days) / Reports / My Pet / AI voice assistant and Settings (coming soon)
 - The "Today" ledger: total, category legend, 00:00→24:00 timeline, and entries (time / what was watched / duration / category), refreshed every minute
 - Ships with ADB keep-alive (`adb_enabled`) and accessibility-based boot autostart
 
@@ -34,15 +34,15 @@ Build and deploy:
 
 ```bash
 bash .agents/skills/tv-pilot/scripts/build-tools.sh ensure   # download build-tools / android.jar (~50MB)
-bash .agents/skills/tv-pilot/scripts/tv-hud.sh build         # outputs .build/out/tvhud.apk
-bash .agents/skills/tv-pilot/scripts/tv-hud.sh install       # permissions/accessibility ordering built in
+bash .agents/skills/tv-pilot/scripts/app.sh build         # outputs .build/out/tv-pilot.apk
+bash .agents/skills/tv-pilot/scripts/app.sh install       # permissions/accessibility ordering built in
 ```
 
 Details and pitfalls live in `references/operations/` (usage stats, screensaver, kids mode, ad removal, boot autostart, dev workflow).
 
 ## About viewing statistics
 
-TV HUD records viewing time and content, but **it is not meant to monitor a child**, nor should it become a tool for checking up on them. Its purpose is to give the family a shared sense of how the TV is used: a child can see how long they have watched today, and adults can agree on a rhythm together instead of nagging over and over.
+tv-pilot records viewing time and content, but **it is not meant to monitor a child**, nor should it become a tool for checking up on them. Its purpose is to give the family a shared sense of how the TV is used: a child can see how long they have watched today, and adults can agree on a rhythm together instead of nagging over and over.
 
 We asked the child for consent before building and using this; the data stays on your own TV, and is never uploaded or shared. We would rather it help a child spend time on what they love — watching TV is supposed to be fun. If these numbers ever make the home tense, something has been used the wrong way.
 
@@ -59,10 +59,15 @@ tv-pilot/
 ├── .github/                      # CI + PR/issue templates
 ├── docs/                         # architecture, JSON contract, provider contract
 ├── tests/                        # offline tests (fake adb; no real TV needed)
-├── tvhud/                        # TV-side app source
+├── app/                          # TV-side app "tv-pilot"
 │   ├── AndroidManifest.xml
 │   ├── build.sh                  # javac + d8 + aapt2 + apksigner, one command to an APK
-│   └── src/com/dsh/tvhud/        # HomeActivity / MainActivity / HudService / UsageDay ...
+│   └── src/com/dsh/tvhud/        # feature packages
+│       ├── home/                 # home menu
+│       ├── usage/                # usage stats / ledger / archive
+│       ├── report/               # weekly/monthly/yearly reports
+│       ├── hud/                  # service / badge / broadcasts / accessibility
+│       └── pet/                  # electronic pet
 └── .agents/skills/tv-pilot/      # the skill itself (see skill README)
     ├── SKILL.md                  # agent entry point: task index
     ├── scripts/                  # connect/probe/stats/deploy/profiles/check + providers/
@@ -95,4 +100,4 @@ Usage notes:
 
 ## License
 
-Code is released under [MIT](LICENSE). Font files under `tvhud/assets/` are not distributed with the repository; copyright remains with their respective vendors.
+Code is released under [MIT](LICENSE). Font files under `app/assets/` are not distributed with the repository; copyright remains with their respective vendors.

@@ -8,7 +8,7 @@ import java.io.File;
  */
 public class Context {
     private static final File TMP = new File(System.getProperty("java.io.tmpdir"),
-            "tvhud-unit-stubs");
+            "tvpilot-unit-stubs");
 
     public SharedPreferences getSharedPreferences(String name, int mode) {
         return null;

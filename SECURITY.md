@@ -1,7 +1,7 @@
 # 安全策略
 
 tv-pilot 是一套**本机、局域网内**使用的电视运维工具：skill 脚本通过 ADB 操作电视，
-`tvhud/` 是装在电视上的辅助 App。它不面向公网，也没有云端账号体系，但 ADB 与
+`app/` 是装在电视上的辅助 App。它不面向公网，也没有云端账号体系，但 ADB 与
 电视端 App 的组合会暴露一批高权限能力。下面是我们认可的威胁模型与已知限制。
 
 ## 威胁模型
@@ -14,7 +14,7 @@ tv-pilot 是一套**本机、局域网内**使用的电视运维工具：skill �
 | `WRITE_SECURE_SETTINGS` | 改电视安全设置（含 `adb_enabled`） | 通过 adb `pm grant` 授予，App 以普通 uid 运行但持有该签名/特权权限 | 只用于 ADB 守护；权限授予可随时 `pm revoke`；限制 App 安装来源 |
 | 使用统计 / 播放记录 | 隐私：看了什么、何时看、看多久 | `UsageStats` + 米家播放日志；结构化历史写在 App 外部私有目录（默认保留 365 天） | 数据只在电视本地；不上传；定期清理历史；分享截图前脱敏 |
 | 无障碍服务 | UI 内容可被观察 | `BootAccessibilityService` 作为开机入口注册，持有 `BIND_ACCESSIBILITY_SERVICE` | 只在自己电视上启用；不用时在设置里关闭；不要授予来源不明的无障碍服务 |
-| 签名 keystore | 伪造升级包 | `.tools/keystore/tvhud.jks`，默认口令 `android`，已 gitignore | keystore 不提交、不分享；正式分发前改成强口令并离线保存 |
+| 签名 keystore | 伪造升级包 | `.tools/keystore/tv-pilot.jks`，默认口令 `android`，已 gitignore | keystore 不提交、不分享；正式分发前改成强口令并离线保存 |
 | 电视端日志 / 截图 | 泄露家庭信息 | 脚本可拉 `logcat` / `screencap`；播放记录含片名 | 提交 issue/PR 前脱敏；不要把原始日志整段贴出 |
 
 ### 不在威胁模型内
@@ -36,7 +36,7 @@ tv-pilot 是一套**本机、局域网内**使用的电视运维工具：skill �
    应用可能读到；保留 365 天，没有自动加密或远程擦除。
 5. **`targetSdkVersion 22`**：App 使用较旧的 targetSdk 以适配 MIUI TV / Android 9，
    不享受新系统的分区存储与后台限制默认值。
-6. **机型假设**：`tvhud/` 的屏保、ADB 守护、播放日志解析以 MIUI TV 为主；
+6. **机型假设**：`app/` 的屏保、ADB 守护、播放日志解析以 MIUI TV 为主；
    其它品牌只保证通用只读能力，写操作需先有设备档案。
 7. **无网络权限**：App 未申请 `INTERNET`，不会主动外传数据；但这不阻止本机其它
    应用或 adb 读取其文件。

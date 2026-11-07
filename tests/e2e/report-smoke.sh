@@ -9,7 +9,7 @@
 #   4. 返回键回到首页；截图留档到 .build/e2e/ 供人眼复核。
 #
 # 用法：
-#   bash tests/e2e/report-smoke.sh                 # 装 .build/out/tvhud.apk 再测
+#   bash tests/e2e/report-smoke.sh                 # 装 .build/out/tv-pilot.apk 再测
 #   bash tests/e2e/report-smoke.sh --no-install    # 测电视上当前安装版本
 #   bash tests/e2e/report-smoke.sh --apk <path>    # 指定 APK
 # 需要：电视已连上 adb（先跑 scripts/ensure-tv.sh）。退出码 0=通过，1=失败，2=环境不满足。
@@ -18,7 +18,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 SKILL="$ROOT/.agents/skills/tv-pilot"
-APK="$ROOT/.build/out/tvhud.apk"
+APK="$ROOT/.build/out/tv-pilot.apk"
 INSTALL=1
 
 while [[ $# -gt 0 ]]; do
@@ -117,7 +117,7 @@ if [[ "$INSTALL" -eq 1 ]]; then
     exit 2
   fi
   if bash "$SKILL/scripts/app-deploy.sh" --apk "$APK" --pkg com.dsh.tvhud \
-      --overlay --usage --acc com.dsh.tvhud/com.dsh.tvhud.BootAccessibilityService \
+      --overlay --usage --acc com.dsh.tvhud/com.dsh.tvhud.hud.BootAccessibilityService \
       >"$SHOTS/deploy.log" 2>&1; then
     pass "安装 + 授权完成（$(basename "$APK")，$(wc -c <"$APK" | tr -d ' ') bytes）"
   else
@@ -130,18 +130,17 @@ fi
 # ---------- 打开报告 ----------
 step "打开使用报告"
 adb_sh logcat -c >/dev/null 2>&1 || true
-# 后台只收 TVHUD / AndroidRuntime 两个 tag，避免被电视系统日志刷爆 4MB 环形缓冲
+# 后台只收 TVPILOT / AndroidRuntime 两个 tag，避免被电视系统日志刷爆 4MB 环形缓冲
 : >"$LOG_FILE"
-adb_sh logcat -v time -s TVHUD:I AndroidRuntime:E >"$LOG_FILE" 2>/dev/null &
+adb_sh logcat -v time -s TVPILOT:I AndroidRuntime:E >"$LOG_FILE" 2>/dev/null &
 LOG_PID=$!
 trap 'kill "$LOG_PID" >/dev/null 2>&1 || true' EXIT
 key 224 1.2            # KEYCODE_WAKEUP：待机时先亮屏
-adb_sh shell am start -n com.dsh.tvhud/.HomeActivity >/dev/null 2>&1
+adb_sh shell am start -n com.dsh.tvhud/.home.HomeActivity >/dev/null 2>&1
 sleep 2.5
 key 20 0.4
-key 20 0.4
-key 23 4.5            # 菜单第 3 项「使用报告」
-if resumed_activity | grep -q 'com.dsh.tvhud/.ReportsActivity'; then
+key 23 4.5            # 菜单第 2 项「使用报告」
+if resumed_activity | grep -q 'com.dsh.tvhud/.report.ReportsActivity'; then
   pass "报告页已打开（ReportsActivity）"
 else
   fail "报告页没打开" "$(resumed_activity)"
@@ -211,7 +210,7 @@ if [[ -n "$(adb_sh shell pidof com.dsh.tvhud 2>/dev/null)" ]]; then
 else
   fail "进程不在了（可能崩溃/被杀）"
 fi
-if resumed_activity | grep -q 'com.dsh.tvhud/.HomeActivity'; then
+if resumed_activity | grep -q 'com.dsh.tvhud/.home.HomeActivity'; then
   pass "返回键回到首页"
 else
   fail "返回键没有回到首页" "$(resumed_activity)"

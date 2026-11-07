@@ -1,7 +1,7 @@
 # 贡献指南
 
 这个仓库收集「用局域网 ADB 操作电视」的实测经验，并按机型组织成**设备档案**；
-`tvhud/` 是电视上实际运行的 App。欢迎补充新机型、修正旧档案、改进通用脚本与 App。
+`app/` 是电视上实际运行的 App。欢迎补充新机型、修正旧档案、改进通用脚本与 App。
 
 **提交前必跑：**
 
@@ -13,7 +13,7 @@ make check && make test
 纯 Java 单元测试），不需要真实设备、不下载工具链；`make e2e` 才是真机冒烟，需要电视。
 
 > CI 只跑 `make check && make test`，不构建 APK（构建需要 Android SDK 工具链，仓库不带、也不在
-> CI 里联网下载）。**动 `tvhud/src/`、Manifest 或 `res/` 的 PR，本地必须再跑一遍 `make apk`**，
+> CI 里联网下载）。**动 `app/src/`、Manifest 或 `res/` 的 PR，本地必须再跑一遍 `make apk`**，
 > 否则 CI 绿了也可能编不过。
 
 ## 贡献类型 → 文件放哪 → 校验命令
@@ -23,7 +23,7 @@ make check && make test
 | 新机型 / 修正档案 | `.agents/skills/tv-pilot/references/devices/<brand>-<model>.md` | `device-profile.sh lint` + `index` + `make check` |
 | 通用脚本 | `.agents/skills/tv-pilot/scripts/*.sh` | `bash -n`、`shellcheck -S error`、`make check && make test` |
 | 品牌 provider | `.agents/skills/tv-pilot/scripts/providers/<brand>-<model>.sh` | 按 `docs/providers.md` 契约 + `make check && make test` |
-| App（TV HUD） | `tvhud/src/`、`tvhud/AndroidManifest.xml`、`tvhud/build.sh` | `make apk` + `make test`（纯逻辑单元测试）+ `make e2e`（真机冒烟，见下） |
+| App（tv-pilot） | `app/src/`、`app/AndroidManifest.xml`、`app/build.sh` | `make apk` + `make test`（纯逻辑单元测试）+ `make e2e`（真机冒烟，见下） |
 | 文档 | `references/operations/`、`references/porting.md`、`docs/` | `make check`（含文档引用存在性） |
 
 ## 1. 设备档案（新机型 / 修正）
@@ -57,19 +57,19 @@ bash scripts/device-profile.sh index     # 重建 references/devices/README.md �
 `.agents/skills/tv-pilot/scripts/providers/<brand>-<model>.sh`，通用脚本不要写死机型事实。
 契约、加载顺序和必选函数见 `docs/providers.md`；改 provider 后同样跑 `make check && make test`。
 
-## 4. App（`tvhud/`）
+## 4. App（`app/`）
 
 ```bash
-make apk                                  # 产出 .build/out/tvhud.apk
+make apk                                  # 产出 .build/out/tv-pilot.apk
 cd .agents/skills/tv-pilot
-bash scripts/app-deploy.sh --apk ../../.build/out/tvhud.apk --pkg com.dsh.tvhud \
-  --activity com.dsh.tvhud/.HomeActivity --overlay --usage \
-  --acc com.dsh.tvhud/com.dsh.tvhud.BootAccessibilityService
+bash scripts/app-deploy.sh --apk ../../.build/out/tv-pilot.apk --pkg com.dsh.tvhud \
+  --activity com.dsh.tvhud/com.dsh.tvhud.home.HomeActivity --overlay --usage \
+  --acc com.dsh.tvhud/com.dsh.tvhud.hud.BootAccessibilityService
 ```
 
 - 装 App 一律走 `scripts/app-deploy.sh`：顺序错了会丢 appops / 无障碍条目。
-- 发版改版本号：根 `version.properties`（单一来源）与 `tvhud/AndroidManifest.xml`；
-  `tvhud/build.sh` 直接读取 properties（文件缺失才用 fallback 硬编码）；`make check` 会校验三者一致。
+- 发版改版本号：根 `version.properties`（单一来源）与 `app/AndroidManifest.xml`；
+  `app/build.sh` 直接读取 properties（文件缺失才用 fallback 硬编码）；`make check` 会校验三者一致。
 - 真机验证至少给出：进程/服务在、`logcat` 无崩溃、关键界面截图或 `screencap`。
 - 纯计算逻辑（周期/聚合/格式化/几何）先补 `tests/java/ReportCoreTest` 的用例，跑 `make test`；
   Canvas 布局把可算的几何抽成纯函数（参考 `BarStack`），别在 View 里复制公式。
@@ -115,7 +115,7 @@ bash scripts/app-deploy.sh --apk ../../.build/out/tvhud.apk --pkg com.dsh.tvhud 
 ```
 docs(device): add hisense-a6g profile
 feat(script): add tv-state --json
-fix(tvhud): keep focus when list refreshes
+fix(app): keep focus when list refreshes
 ```
 
 常用 type：`feat` / `fix` / `docs` / `test` / `chore`。一个 PR 聚焦一件事。
@@ -126,7 +126,7 @@ fix(tvhud): keep focus when list refreshes
 - [ ] 设备档案附了「命令 + 输出摘录 + 日期」证据；没测的保持 `unknown`
 - [ ] 已脱敏：无真实 IP / MAC / 序列号 / SSID / 账号 / 观看记录
 - [ ] 通用脚本与机型事实已分离（机型差异在档案或 `scripts/providers/`）
-- [ ] 没有提交 `.env`、`.tools/`、keystore、`.build/`、APK、`tvhud/assets/*.otf|ttf`
+- [ ] 没有提交 `.env`、`.tools/`、keystore、`.build/`、APK、`app/assets/*.otf|ttf`
 - [ ] 新增/移动文件后，文档与 `SKILL.md` 的引用路径仍然有效
 - [ ] 改 App 时 `version.properties` 与 `AndroidManifest.xml` 一致，并说明真机验证方式
 - [ ] 改设备档案时 `index` 的矩阵变更一并提交

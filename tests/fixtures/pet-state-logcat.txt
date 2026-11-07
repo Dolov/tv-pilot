@@ -1,0 +1,2 @@
+--------- beginning of main
+11-07 12:27:55.058 23236 23236 I TVPILOT : pet state exp=8 stars=1 stage=0 branch=0 mut=0 seen= owned= decor= degrade=0 degradeStage=0 sessions=0/6 gate=false reason=0 window=true freePass=1793980800000 journal=

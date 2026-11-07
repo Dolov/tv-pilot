@@ -1,6 +1,6 @@
 # tv-pilot skill（中文说明）
 
-这是给 AI 编码代理用的「电视运维」skill：把局域网 ADB 操作小米/Redmi 电视的经验，固化成一串**能直接跑的命令**和一套**按需读的文档**。它同时是仓库里 `tvhud/` 电视端 App 的运维底座。
+这是给 AI 编码代理用的「电视运维」skill：把局域网 ADB 操作小米/Redmi 电视的经验，固化成一串**能直接跑的命令**和一套**按需读的文档**。它同时是仓库里 `app/` 电视端 App 的运维底座。
 
 > 代理入口是 [SKILL.md](SKILL.md)；本文件给人看（怎么装、目录怎么读、坏了怎么修）。
 
@@ -56,7 +56,7 @@ tv-pilot/
 | 今天看了多久 / 看了什么 | `bash scripts/usage.sh` |
 | 遥控器电量 | `bash scripts/remote-battery.sh` |
 | 开机 / 待机 / 关机 | `bash scripts/tv-state.sh [--json]` |
-| TV HUD 控制（状态/启停/构建/安装/截屏） | `bash scripts/tv-hud.sh status` |
+| tv-pilot 控制（状态/启停/构建/安装/截屏） | `bash scripts/app.sh status` |
 | 写操作前确认能力 | `bash scripts/require-profile.sh <capability>` |
 | 档案工具 | `bash scripts/device-profile.sh init\|lint\|index` |
 | 仓库自检（贡献前） | `bash scripts/check.sh` |

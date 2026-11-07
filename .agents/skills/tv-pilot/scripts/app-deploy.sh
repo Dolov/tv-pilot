@@ -4,10 +4,10 @@
 # 用法：
 #   app-deploy.sh --apk <apk路径> --pkg <包名> [选项]
 # 选项：
-#   --activity <组件>   例如 com.dsh.tvhud/.MainActivity：装完启动一次，清掉 stopped 状态
+#   --activity <组件>   例如 com.dsh.tvhud/com.dsh.tvhud.usage.MainActivity：装完启动一次，清掉 stopped 状态
 #   --overlay           授予 SYSTEM_ALERT_WINDOW（悬浮窗/角标必需）
 #   --usage             授予 GET_USAGE_STATS（读前台应用/屏保识别必需）
-#   --acc <组件>        无障碍服务组件，例如 com.dsh.tvhud/com.dsh.tvhud.BootAccessibilityService
+#   --acc <组件>        无障碍服务组件，例如 com.dsh.tvhud/com.dsh.tvhud.hud.BootAccessibilityService
 #                       会**最后**追加到 enabled_accessibility_services（install 会把它删掉）
 #   --tag <TAG>         装完从 logcat 抓这个 tag 最近几行（自检用）
 #   --dry-run           只打印将执行的命令

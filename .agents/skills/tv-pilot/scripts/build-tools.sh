@@ -10,7 +10,7 @@ TOOLS="$SKILL_DIR/.tools"
 SDK="$TOOLS/android-sdk"
 BT="$SDK/build-tools"
 AJ="$SDK/platform-28/android.jar"
-KS="$TOOLS/keystore/tvhud.jks"
+KS="$TOOLS/keystore/tv-pilot.jks"
 MIRROR="https://mirrors.cloud.tencent.com/AndroidSDK"
 mkdir -p "$SDK" "$TOOLS/keystore"
 

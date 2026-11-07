@@ -44,7 +44,7 @@ apksigner sign --ks "$KS" --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" -
 
 ## 关键坑（都踩过）
 
-- **keystore 必须固定**（现在固定在 `.tools/keystore/tvhud.jks`）。换了签名只能先 uninstall 再装，
+- **keystore 必须固定**（现在固定在 `.tools/keystore/tv-pilot.jks`）。换了签名只能先 uninstall 再装，
   appops、无障碍条目、App 数据全部重来。丢 keystore = 必须走一次卸载重装。
   签名密码用环境变量 `TVPILOT_KS_PASS`（默认 `android`），可写进本地 `.env`，不要硬编码进仓库。
 - 有 assets 必须给 `aapt2 link` 加 `-A assets/`，否则运行时 `Typeface.createFromAsset` 找不到文件。

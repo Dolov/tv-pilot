@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # TV mini-App 项目保底备份/恢复（防止工作区被清空后源码丢失）
 #
-#   app-backup.sh backup  <项目目录> [--name tvhud]   备份到 assets/<name>/
+#   app-backup.sh backup  <项目目录> [--name app]   备份到 assets/<name>/
 #   app-backup.sh restore <name> [<目标目录>]         恢复到目标目录（默认当前目录）
 #   app-backup.sh list                                已有哪些备份
 #

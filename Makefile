@@ -11,10 +11,10 @@ help:
 	  '' \
 	  '  make check   仓库自检：bash -n / shellcheck(error) / JSON / 档案 lint+index' \
 	  '               / 文档引用 / 版本一致性 / SKILL.md / 禁提交文件' \
-	  '  make test    离线测试：tests/run.sh（fake adb + 报告核心 Java 单元测试，不需要真电视）' \
+	  '  make test    离线测试：tests/run.sh（fake adb + 核心 Java 单元测试，不需要真电视）' \
 	  '  make e2e     真机冒烟：tests/e2e/report-smoke.sh（需要电视，装 APK 后跑报告页流程）' \
 	  '  make regression 全量真机回归：tests/e2e/full-regression.sh（首页/台账/记录/报告全走一遍）' \
-	  '  make apk     构建电视端 APK：bash tvhud/build.sh' \
+	  '  make apk     构建电视端 APK：bash app/build.sh' \
 	  '  make index   重建设备支持矩阵：device-profile.sh index' \
 	  '  make help    显示本帮助' \
 	  '' \
@@ -37,7 +37,7 @@ regression:
 
 # 需要 .tools/ 工具链（bash scripts/build-tools.sh ensure）。
 apk:
-	@bash tvhud/build.sh
+	@bash app/build.sh
 
 index:
 	@bash $(SKILL_DIR)/scripts/device-profile.sh index

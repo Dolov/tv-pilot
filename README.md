@@ -2,12 +2,12 @@
 
 [中文](README.md) | [English](README.en.md)
 
-用**局域网 ADB** 操作电视（已实测小米 / Redmi MIUI TV，其它 Android TV 可按设备档案接入）：免数据线发现设备、只读探测、配置儿童模式与观看时长、清理广告组件、安装第三方 APK、读遥控器电量、统计电视使用时长与观看内容，以及在电视上跑一个自研小 App「**TV HUD**」（屏保右上角角标 + 今日使用台账 + 使用记录 + 周/月/年使用报告）。
+用**局域网 ADB** 操作电视（已实测小米 / Redmi MIUI TV，其它 Android TV 可按设备档案接入）：免数据线发现设备、只读探测、配置儿童模式与观看时长、清理广告组件、安装第三方 APK、读遥控器电量、统计电视使用时长与观看内容，以及在电视上跑一个自研小 App「**tv-pilot**」（屏保右上角角标 + 今日使用台账 + 使用记录 + 周/月/年使用报告）。
 
 整套东西由两层组成：
 
 - **`.agents/skills/tv-pilot/`**：给 AI 编码代理用的 skill（脚本 + 参考文档 + 评测 + 品牌扩展点）。入口是 [SKILL.md](.agents/skills/tv-pilot/SKILL.md)，给人看的安装/结构说明在 [skill README](.agents/skills/tv-pilot/README.md)。
-- **`tvhud/`**：电视上真正运行的小 App（纯 Java + 系统 API，无 Gradle/Android Studio，`build.sh` 直接出 APK）。
+- **`app/`**：电视上真正运行的小 App（纯 Java + 系统 API，无 Gradle/Android Studio，`build.sh` 直接出 APK）。
 
 ## 快速开始
 
@@ -23,27 +23,30 @@ bash scripts/usage.sh              # 今天看了多久、看了什么
 
 电视侧先把 ADB 调试打开（`设置 → 账号与安全 → 安全 → ADB 调试`，部分固件要重启电视 5555 才监听），首次连接在电视上按「允许」。
 
-## TV HUD 能做什么
+## tv-pilot 能做什么
 
 - 屏保右上角角标三行：开机状态 / 遥控器电量 / 今日使用长条（24 小时时间轴，按类别着色）
-- 打开 App 是首页菜单：今日使用 / 使用记录（按天翻历史，保留 365 天）/ 使用报告（周报、月报、年报数据大屏）/ AI 语音助手与设置（即将上线）
-- 「今日使用」台账：合计、分类图例、0:00→24:00 时间轴、明细（时间 / 看了什么 / 时长 / 类别），每分钟刷新
+- 打开 App 是首页菜单：使用记录（今日台账 + ←→ 按天回看，保留 365 天）/ 使用报告（周报、月报、年报数据大屏）/ 我的宠物 / 家长设置（PIN）
+- 「使用记录」台账：总时长、分类图例、0:00→24:00 时间轴、明细（时间 / 看了什么 / 时长 / 类别），每分钟刷新；←→ 按天回看历史（最多 365 天）
 - 「使用报告」：三套布局（周报 7 天节奏 + 日流水 / 月报日历热力 + 周内平均 / 年报 12 月走势 + 季度构成），←→ 回看上一期、↑↓ 切粒度、OK 回到本期
+- 「我的宠物」：15 分钟一场 × 3 场，到点宠物全屏拦截；休息或答 3 题续 5 分钟；
+  2.5D 宠物可吃饭/喝水/摸摸/洗澡/刷牙、变胖变瘦、换帽子/衣服/翅膀、买装饰布置房间；
+  Lv24 分智慧/疾风/美食三线，完全体后还会变异（图鉴），连续不达标只回退外观、不死亡
 - 附带 ADB 守护（保持 `adb_enabled`）与无障碍开机自启
 
 构建与部署：
 
 ```bash
 bash .agents/skills/tv-pilot/scripts/build-tools.sh ensure   # 下载 build-tools / android.jar（~50MB）
-bash .agents/skills/tv-pilot/scripts/tv-hud.sh build         # 产出 .build/out/tvhud.apk
-bash .agents/skills/tv-pilot/scripts/tv-hud.sh install       # 权限/无障碍顺序内置
+bash .agents/skills/tv-pilot/scripts/app.sh build         # 产出 .build/out/tv-pilot.apk
+bash .agents/skills/tv-pilot/scripts/app.sh install       # 权限/无障碍顺序内置
 ```
 
 详细口径与坑见 `references/operations/`（使用统计、屏保、儿童模式、去广告、开机自启、开发闭环）。
 
 ## 关于观看统计
 
-TV HUD 会记录观看时长和内容，但**这不是为了监控孩子**，也不想把它变成查岗工具。它的本意是让全家对电视的使用心里有数：孩子能看到自己今天看了多久，大人可以据此一起商量节奏，而不是一遍遍催促。
+tv-pilot 会记录观看时长和内容，但**这不是为了监控孩子**，也不想把它变成查岗工具。它的本意是让全家对电视的使用心里有数：孩子能看到自己今天看了多久，大人可以据此一起商量节奏，而不是一遍遍催促。
 
 这份统计在开发和使用前已经征求过孩子的同意；数据只留在自家电视本地，不上传、不共享。我们更希望它帮孩子把时间花在喜欢的内容上——看电视本来就该是件开心的事。如果哪一天这些数字让家里变得紧张，那一定是哪里用错了。
 
@@ -60,10 +63,15 @@ tv-pilot/
 ├── .github/                      # CI + PR/issue 模板
 ├── docs/                         # 架构、JSON 契约、provider 规范
 ├── tests/                        # 测试：fake-adb 脚本 / tests/java 单元 / tests/e2e 真机冒烟
-├── tvhud/                        # 电视端 App 源码
+├── app/                          # 电视端 App「tv-pilot」源码
 │   ├── AndroidManifest.xml
 │   ├── build.sh                  # javac + d8 + aapt2 + apksigner，一条命令出 APK
-│   └── src/com/dsh/tvhud/        # HomeActivity / MainActivity / HudService / UsageDay ...
+│   └── src/com/dsh/tvhud/        # 按功能分包（AI agent 友好）
+│       ├── home/                 # 首页菜单
+│       ├── usage/                # 使用统计 / 台账 / 归档
+│       ├── report/               # 周月年报告
+│       ├── hud/                  # 常驻服务 / 角标 / 广播 / 无障碍
+│       └── pet/                  # 电子宠物
 └── .agents/skills/tv-pilot/      # skill 本体（见 skill README）
     ├── SKILL.md                  # 代理入口：操作索引
     ├── scripts/                  # 连接/探测/统计/部署/档案/自检 + providers/
@@ -96,4 +104,4 @@ tv-pilot/
 
 ## 许可
 
-代码以 [MIT](LICENSE) 发布。`tvhud/assets/` 下的字体文件不随仓库分发，版权归各自厂商。
+代码以 [MIT](LICENSE) 发布。`app/assets/` 下的字体文件不随仓库分发，版权归各自厂商。

@@ -5,9 +5,9 @@
 | 层 | 目录 | 覆盖 | 命令 |
 |---|---|---|---|
 | 离线脚本 | `tests/fake-adb` + `tests/run.sh` | skill 脚本的连接阶梯、识别、取数、`--json` 契约 | `make test` |
-| 纯逻辑单元 | `tests/java/` + `tests/java/stubs/` | TV HUD 里不依赖 Android 的逻辑：周期边界、日汇总、聚合、洞察、百分比、片名解析、堆叠柱几何 | `make test` |
+| 纯逻辑单元 | `tests/java/` + `tests/java/stubs/` | tv-pilot 里不依赖 Android 的逻辑：报告周期/聚合/洞察/几何 + 宠物等级/照顾/场次预算/题库/商店/分支/退化/变异/时间窗 | `make test` |
 | 真机冒烟 | `tests/e2e/report-smoke.sh` | 装 APK → 打开报告 → 周/月/年导航 → 日志/崩溃/一致性断言 + 截图 | `make e2e` |
-| 全量真机回归 | `tests/e2e/full-regression.sh` | 首页 / 今日使用 / 使用记录 / 报告三页 / 屏保服务 + 归档完整性 | `make regression` |
+| 全量真机回归 | `tests/e2e/full-regression.sh` | 首页 / 使用记录（今日+历史） / 报告三页 / 宠物房间四分区 / 屏保服务 + 归档完整性 | `make regression` |
 
 `make check && make test` 是提交门禁（CI 也跑）；`make e2e` 需要电视，不进 CI。
 
@@ -32,24 +32,36 @@ tests/
 
 ## 2. 纯逻辑单元测试（纯 Java，不需要 Android）
 
-TV HUD 是「无 Gradle、直接 javac」的纯 Java 应用，没有 JUnit 基础设施。这里用
+tv-pilot 是「无 Gradle、直接 javac」的纯 Java 应用，没有 JUnit 基础设施。这里用
 `tests/java/stubs/` 下最小的 `android.content.*` / `org.json.JSONArray` 桩，把纯数据/纯计算类
-编出来，再用自带断言框架的 `ReportCoreTest` 跑用例：
+编出来，再用自带断言框架的 `ReportCoreTest` / `PetCoreTest` 跑用例：
 
 ```text
 tests/java/
 ├── run.sh                       # 编译 + 运行（PATH 里没有可用 javac 时回退 skill 的 .tools JDK）
 ├── stubs/                       # 只为编译通过的最小 Android/JSON 桩，不会被真的调用
-└── src/                         # 用例源码（package com.dsh.tvhud，入口 ReportCoreTest）
+└── src/com/dsh/tvhud/
+    ├── report/ReportCoreTest.java  # package com.dsh.tvhud.report
+    ├── usage/CategoriesTest.java   # 包名/类名 → 视频/音乐/儿童/桌面
+    ├── pet/PetCoreTest.java        # 等级/照顾/衰减/场次预算/题库
+    ├── pet/PetShopTest.java        # 商店/衣柜/分支/退化/变异/流水/周末/时间窗
+    ├── pet/SettingsFactsTest.java  # 家长设置目录摘要 / 今天状态（优先级/进度/时段格式）
+    ├── pet/PinGraceTest.java       # 家长设置 PIN 5 分钟免输窗口（边界/锁定优先）
+    ├── ui/ThemeCoreTest.java       # 主题 token：16 色 × 4 底色对比度 / 缓存 / 字阶圆角
+    └── ui/TapeCoreTest.java        # 带子几何（24h 边界/刻度/游标）+ 4 个 look 与旧外观迁移
 ```
 
 覆盖：`ReportPeriod`（周/月/年边界、ISO 周序号、跨年标签）、`DayAgg`（跨小时切分、裁剪、主类别）、
 `ReportMath`（聚合、旧分类口径降级、百分比、峰值时段、周/月/年洞察、周内平均口径、`checkInvariants`）、
 `PlayEntry.parse`（只认当天、有片名的播放事件）、`BarStack`（堆叠柱高度 = 总时长，v1.13 堆叠 bug 回归）、
 `ChartAxis`（纵轴档位与轴高）、`UsageDay.snapshot`（跨线程快照）、`HistoryStore`（旧归档缺省 scheme 3、
-播放记录越界自检）。
+播放记录越界自检）；宠物侧覆盖 `PetEngine`（等级/阶段/照顾/衰减/换牙/每日结算/分支/退化/变异/躲壳）、
+`Budget`（15×3 场次、续时、答题失败、家长时间、周末加场、允许时段）、`QuizBank`（解析/抽题/判分/非法题跳过）、
+`Shop`（买/退/穿/喂/装饰最多 3 个）、`PetJournal`（同日覆盖、保留 14 天、周报汇总）、
+`SettingsFacts`（今天状态优先级、摘要文案、场次倒挂与时段格式）、`PinGrace`（5 分钟免输窗口边界、锁定优先）、
+`Categories`（视频/音乐/儿童/桌面/其他，含 PatchWall 内嵌酷狗插件宿主页）。
 
-**加用例**：在 `ReportCoreTest` 里加一个 `runCase(...)`；测新逻辑时先把它写成不 import Android
+**加用例**：在对应 `ReportCoreTest` / `PetCoreTest` / `PetShopTest` / `SettingsFactsTest` / `PinGraceTest` 里加一个 `runCase(...)`；测新逻辑时先把它写成不 import Android
 的纯函数（参考 `BarStack`、`ReportMath`），否则离线测试编不过。`javac` 不可用时整层 SKIP，
 不影响 `make test` 通过。
 
@@ -70,7 +82,7 @@ make e2e        # = bash tests/e2e/report-smoke.sh
 4. 返回键回到 `HomeActivity`；每个阶段截图到 `.build/e2e/` 供人眼复核。
 
 常用参数：`--no-install`（测电视上当前版本，省一次安装）、`--apk <path>`。
-断言的日志是**采集时后台过滤 `TVHUD:I`/`AndroidRuntime:E` 落文件**，不是事后 `logcat -d`——
+断言的日志是**采集时后台过滤 `TVPILOT:I`/`AndroidRuntime:E` 落文件**，不是事后 `logcat -d`——
 电视系统日志很吵，4MB 缓冲几秒就滚掉。
 
 ## 4. 全量真机回归（改动碰多个页面时）
@@ -82,8 +94,7 @@ make apk && make regression
 比 `make e2e` 覆盖更全，把**所有现有页面**走一遍并断言：
 
 1. 首页：5 个菜单项都在，默认选中第 1 项；
-2. 今日使用：合计 / 段数 / 分类图例 / 时间轴 / 明细都渲染；
-3. 使用记录：按天回看（落到最近有归档的一天），左右键翻日期不崩；
+2. 使用记录：今日台账（总时长 / 分类图例 / 时间轴 / 明细）渲染，左右键按天回看不崩；
 4. 使用报告：周/月/年三档 + 翻页 + 回本期 + 返回首页；
 5. 屏保角标：`HudService` 在跑、无障碍条目在（开机自启依赖）；
 6. 数据侧：先发 `am broadcast -a com.dsh.tvhud.ARCHIVE_NOW` 让服务强制写一次当天归档，

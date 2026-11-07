@@ -3,7 +3,7 @@
 设备档案写「这台机器是什么、测过什么」，provider 写「这台机器该去哪个键/哪个日志取数据」。
 通用脚本不写机型的包名、settings 键、日志路径，而是通过这里的函数拿差异。
 
-完整说明与新增机型步骤见 [`docs/providers.md`](../../../../docs/providers.md)；
+完整说明与新增机型步骤见 [`docs/providers.md`](../../../../../docs/providers.md)；
 新机型的数据采集流程见 [`references/porting.md`](../../references/porting.md)。
 
 ## 加载方式

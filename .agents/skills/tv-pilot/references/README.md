@@ -4,7 +4,7 @@
 
 ## 本机事实
 
-- [local.md](local.md) — **setup.sh 生成**，记录当前电视地址/型号/档案/TV HUD 版本/工具链状态。已 gitignore，换电视后重跑 `bash scripts/setup.sh`。没有这个文件时，`SKILL.md` 会先让你跑 setup。
+- [local.md](local.md) — **setup.sh 生成**，记录当前电视地址/型号/档案/tv-pilot 版本/工具链状态。已 gitignore，换电视后重跑 `bash scripts/setup.sh`。没有这个文件时，`SKILL.md` 会先让你跑 setup。
 
 ## 操作方法论（operations/）
 

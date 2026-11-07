@@ -8,7 +8,7 @@
 .tools/
 **/.tools/
 
-# ---- skill 的保底备份（assets/<项目>/ 是本地生成副本，源码以仓库根 tvhud/ 为准）----
+# ---- skill 的保底备份（assets/<项目>/ 是本地生成副本，源码以仓库根 app/ 为准）----
 .agents/skills/tv-pilot/assets/
 
 # ---- 构建产物 ----
@@ -17,8 +17,15 @@
 *.apk
 
 # ---- 专有字体：不公开分发。本地保留同名文件即可参与构建，缺失时回退系统字体 ----
-tvhud/assets/DINPro_Medium.otf
-tvhud/assets/MIUI_EX_Light.ttf
+app/assets/DINPro_Medium.otf
+app/assets/MIUI_EX_Light.ttf
 
 # ---- 本机事实（setup.sh 生成：当前电视型号/档案/App 版本；不进仓库）----
 .agents/skills/tv-pilot/references/local.md
+
+# ---- 探测/统计落盘目录（probe.sh、usage.sh 的默认输出；含真实观看记录，不进仓库）----
+probe/
+
+# ---- 工具脚本的编译产物（tools/theme-preview/*.class 等）----
+tools/**/*.class
+tools/**/*.jar
