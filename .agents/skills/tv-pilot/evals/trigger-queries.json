@@ -28,6 +28,11 @@
       "kind": "儿童模式"
     },
     {
+      "query": "家长设置的密码是多少？我要进去把今天的时间限制关掉",
+      "should_trigger": true,
+      "kind": "家长设置"
+    },
+    {
       "query": "电视重启后我自己写的小 App 不启动了，是不是开机广播收不到",
       "should_trigger": true,
       "kind": "开机自启"
