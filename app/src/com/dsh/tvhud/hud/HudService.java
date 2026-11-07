@@ -1095,6 +1095,20 @@ public class HudService extends Service {
             petVersion = PetStore.version();
         }
         petBudget.parentMode = PetStore.parentMode(this);
+        // 免限卡和家长时间一样，每 tick 从存档读一次：跨天自动失效，
+        // 也保证别的进程（调试广播 / 另一个 Activity）改过之后这里立刻生效。
+        long freePass = PetStore.freePassDay(this);
+        if (freePass != petBudget.freePassDay) {
+            petBudget.freePassDay = freePass;
+            // 卡刚被发下来：把已经挂着的闸门收掉，别让孩子卡在拦截页上
+            if (freePass == today && petBudget.gateOpen) {
+                petBudget.gateOpen = false;
+                petBudget.gateReason = Budget.GATE_NORMAL;
+                petBudget.sessionMs = 0L;
+                petBudget.extensionMs = 0L;
+                PetStore.saveBudget(this, petBudget);
+            }
+        }
 
         if (petBudget.gateOpen) {
             hidePetBubble();

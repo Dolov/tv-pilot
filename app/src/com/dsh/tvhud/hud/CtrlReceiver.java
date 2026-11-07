@@ -172,6 +172,23 @@ public class CtrlReceiver extends BroadcastReceiver {
             context.startService(new Intent(context, HudService.class));
             return;
         }
+        if (action.endsWith(".PET_FREE_PASS_ON") || action.endsWith(".PET_FREE_PASS_OFF")) {
+            boolean on = action.endsWith(".PET_FREE_PASS_ON");
+            if (on) {
+                PetStore.grantFreePass(context);
+            } else {
+                PetStore.revokeFreePass(context);
+            }
+            Budget b = PetStore.loadBudget(context);
+            // 收掉挂着的闸门：卡刚发下来时孩子可能正卡在拦截页上
+            b.gateOpen = false;
+            b.gateReason = Budget.GATE_NORMAL;
+            b.sessionMs = 0L;
+            b.extensionMs = 0L;
+            PetStore.saveBudget(context, b);
+            context.startService(new Intent(context, HudService.class));
+            return;
+        }
         if (action.endsWith(".PET_WEEKEND_ON") || action.endsWith(".PET_WEEKEND_OFF")) {
             PetStore.setWeekendBonus(context, action.endsWith(".PET_WEEKEND_ON"));
             context.startService(new Intent(context, HudService.class));
@@ -190,7 +207,9 @@ public class CtrlReceiver extends BroadcastReceiver {
                     + " degrade=" + s.degradeUntil + " degradeStage=" + s.degradeStage
                     + " sessions=" + b.sessionsUsed + "/" + b.maxSessions
                     + " gate=" + b.gateOpen + " reason=" + b.gateReason
-                    + " window=" + b.windowEnabled + " journal=" + PetStore.journal(context));
+                    + " window=" + b.windowEnabled
+                    + " freePass=" + b.freePassDay
+                    + " journal=" + PetStore.journal(context));
             return;
         }
         if (action.endsWith(".PET_REPORT")) {

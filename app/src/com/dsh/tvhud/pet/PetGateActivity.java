@@ -124,6 +124,11 @@ public final class PetGateActivity extends Activity {
                 handler.postDelayed(this, 500L);
                 return;
             }
+            // 家长在设置页发了「今天免限」：这页拦得就没意义了，直接放孩子回去
+            if (PetStore.hasFreePass(PetGateActivity.this)) {
+                releaseForFreePass();
+                return;
+            }
             secondsLeft--;
             if (secondsLeft <= 0) {
                 doRest(true);
@@ -526,6 +531,35 @@ public final class PetGateActivity extends Activity {
             speak("晚安，明天见");
         }
         handler.postDelayed(finishRunnable, auto ? 1200L : 900L);
+    }
+
+    /**
+     * 家长发了「今天免限」：直接放孩子回去看，不计场次、不罚星星。
+     *
+     * 和 {@link #doRest} 的区别：doRest 是「休息」——会计 1 场并可能给成长值；
+     * 这里只是「这次拦截作废」，所以既不计数也不奖励，只把闸门关掉然后退出这一页。
+     */
+    private void releaseForFreePass() {
+        if (finishedChoice) {
+            return;
+        }
+        finishedChoice = true;
+        handler.removeCallbacksAndMessages(null);
+        budget.gateOpen = false;
+        budget.gateReason = Budget.GATE_NORMAL;
+        budget.sessionMs = 0L;
+        budget.extensionMs = 0L;
+        PetStore.saveBudget(this, budget);
+        choiceRow.setVisibility(View.GONE);
+        quizPanel.setVisibility(View.GONE);
+        countdownText.setVisibility(View.GONE);
+        celebrationText.setVisibility(View.GONE);
+        petView.setVisibility(View.VISIBLE);
+        titleText.setText("今天可以继续看");
+        messageText.setText("家长今天给你放开了");
+        petView.play(PetView.ANIM_HAPPY);
+        speak("今天可以继续看");
+        handler.postDelayed(finishRunnable, 900L);
     }
 
     private void startQuiz() {

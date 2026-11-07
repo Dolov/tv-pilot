@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.dsh.tvhud"
-    android:versionCode="23"
-    android:versionName="1.22">
+    android:versionCode="26"
+    android:versionName="1.25">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="22" />
 
@@ -111,6 +111,8 @@
                 <action android:name="com.dsh.tvhud.PET_GIVE_STARS" />
                 <action android:name="com.dsh.tvhud.PET_WINDOW_ON" />
                 <action android:name="com.dsh.tvhud.PET_WINDOW_OFF" />
+                <action android:name="com.dsh.tvhud.PET_FREE_PASS_ON" />
+                <action android:name="com.dsh.tvhud.PET_FREE_PASS_OFF" />
                 <action android:name="com.dsh.tvhud.PET_WEEKEND_ON" />
                 <action android:name="com.dsh.tvhud.PET_WEEKEND_OFF" />
                 <action android:name="com.dsh.tvhud.PET_GENTLE_ON" />

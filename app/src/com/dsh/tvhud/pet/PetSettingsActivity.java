@@ -18,7 +18,8 @@ import android.widget.Toast;
 /**
  * 家长设置：4 位 PIN（默认 2580）+ 时间规则 / 宠物行为 / 周报入口 / 重置。
  *
- * 入口有两个：宠物房间长按返回 5 秒、到点拦截页长按返回 5 秒（入口不在本页改）。
+ * 入口有三个：首页菜单「家长设置」、宠物房间长按返回 5 秒、到点拦截页长按返回 5 秒
+ * （入口不在本页改；首页入口是给家长用的明面入口，PIN 仍在本页校验）。
  * 遥控器：↑↓ 移焦点；←→ 或 OK 改值；返回键退出。
  *
  * 每次改完立即写 PetStore（家长配置）并 loadBudget + applyConfig + saveBudget
@@ -43,13 +44,14 @@ public final class PetSettingsActivity extends Activity {
     private static final int R_WINDOW_ON = 6;
     private static final int R_WINDOW_START = 7;
     private static final int R_WINDOW_END = 8;
-    private static final int R_ADD_SESSION = 9;
-    private static final int R_DEGRADE = 10;
-    private static final int R_GENTLE = 11;
-    private static final int R_PARENT = 12;
-    private static final int R_REPORT = 13;
-    private static final int R_RESET = 14;
-    private static final int R_BACK = 15;
+    private static final int R_FREE_PASS = 9;
+    private static final int R_ADD_SESSION = 10;
+    private static final int R_DEGRADE = 11;
+    private static final int R_GENTLE = 12;
+    private static final int R_PARENT = 13;
+    private static final int R_REPORT = 14;
+    private static final int R_RESET = 15;
+    private static final int R_BACK = 16;
 
     private final int[] digits = new int[PIN_LEN];
     private TextView[] boxes;
@@ -68,6 +70,7 @@ public final class PetSettingsActivity extends Activity {
     private Row windowOnRow;
     private Row windowStartRow;
     private Row windowEndRow;
+    private Row freePassRow;
     private Row addSessionRow;
     private Row degradeRow;
     private Row gentleRow;
@@ -400,6 +403,8 @@ public final class PetSettingsActivity extends Activity {
         addHint(list, "只拦新开的一场，不掐断正在看的；跨零点自动支持，开始=结束表示全天。");
         windowStartRow = addRow(list, R_WINDOW_START, "允许时段开始");
         windowEndRow = addRow(list, R_WINDOW_END, "允许时段结束");
+        freePassRow = addRow(list, R_FREE_PASS, "今天免限");
+        addHint(list, "今天不拦时段、场次也不限；明天自动恢复原来的限制。");
         addSessionRow = addRow(list, R_ADD_SESSION, "临时加一场");
         addHint(list, "+1 场，只在今天有效。");
 
@@ -581,6 +586,13 @@ public final class PetSettingsActivity extends Activity {
                 PetStore.setWindow(this, start, end);
                 break;
             }
+            case R_FREE_PASS:
+                if (dir != 0) {
+                    return;
+                }
+                toggleFreePass();
+                refresh();
+                return;
             case R_ADD_SESSION:
                 if (dir != 0) {
                     return;
@@ -628,6 +640,35 @@ public final class PetSettingsActivity extends Activity {
         b.addSession();
         PetStore.saveBudget(this, b);
         Toast.makeText(this, "今天多一场，共 " + b.maxSessions + " 场", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * 今天免限卡：开 = 今天不拦（时段 + 场次），关 = 立刻收回。
+     *
+     * 收回时会把已经打开的闸门关掉，孩子正在看的这一场不算数；
+     * 开的时候同样要关闸门，否则孩子会一直卡在「现在是休息时间」那页上，
+     * 后面 Service 也不会再拉起它（gateOpen 还挂着）。
+     */
+    private void toggleFreePass() {
+        boolean on = PetStore.hasFreePass(this);
+        if (on) {
+            PetStore.revokeFreePass(this);
+            Toast.makeText(this, "已收回今天的免限，明天照常", Toast.LENGTH_SHORT).show();
+        } else {
+            PetStore.grantFreePass(this);
+            Toast.makeText(this, "今天不限制了，明天自动恢复", Toast.LENGTH_SHORT).show();
+        }
+        Budget b = PetStore.loadBudget(this);
+        if (b.dayStart <= 0L) {
+            b.dayStart = PetStore.todayStart();
+        }
+        PetStore.applyConfig(this, b, b.dayStart);
+        // 关闸门：不管开还是关都重置成「没拦住」的状态
+        b.gateOpen = false;
+        b.gateReason = Budget.GATE_NORMAL;
+        b.sessionMs = 0L;
+        b.extensionMs = 0L;
+        PetStore.saveBudget(this, b);
     }
 
     private void armReset() {
@@ -681,6 +722,7 @@ public final class PetSettingsActivity extends Activity {
         windowOnRow.setValue(onOff(PetStore.windowEnabled(this)));
         windowStartRow.setValue(Budget.formatMinute(PetStore.windowStart(this)));
         windowEndRow.setValue(Budget.formatMinute(PetStore.windowEnd(this)));
+        freePassRow.setValue(PetStore.hasFreePass(this) ? "今天开" : "关");
         int extra = PetStore.loadBudget(this).extraSessions;
         addSessionRow.setValue(extra > 0 ? "今天 +" + extra + " 场" : "今天 +0 场");
         degradeRow.setValue(onOff(PetStore.degradeEnabled(this)));

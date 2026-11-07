@@ -35,14 +35,17 @@ app/src/com/dsh/tvhud/
   连续 2 天没照顾会躲进被子，一次互动就回来。家长可整体关闭。
 - **家长设置**：首页菜单直接进（也保留宠物房间/拦截页长按返回 5 秒的老入口）；
   4 位 PIN（默认 2580）；每场时长 / 每天场次 / 答题续时与次数 / 周末加场 /
-  允许时段（只拦新开场）/ 退化 / 温和模式 / 家长时间 / 临时加场 / 宠物周报 / 重置。
+  允许时段（只拦新开场）/ **今天免限** / 退化 / 温和模式 / 家长时间 / 临时加场 / 宠物周报 / 重置。
+- **今天免限**：家长给今天发一张免限卡 —— 当天不拦允许时段、场次上限也不拦；
+  跨天自动恢复原限制（存的是「哪一天」不是「多久」，断电重启也不会带过来）。
 - **宠物周报**：本周观看时长、场次、按时休息、超时、答题正确率、成长/分支/变异；
   只统计时长与行为，不记录看了什么、不上传。
 - 调试广播（`adb shell am broadcast -a com.dsh.tvhud.PET_...`）：
   `PET_GATE [--ez window true]` 强制到点/时间窗、`PET_NEAR_END --ei seconds 180` 模拟剩 3 分钟、
   `PET_DEBUG --ei exp 450 --ei stars 200` 改数值、`PET_SHOP --es item hat_cap` 买/喂、
   `PET_BRANCH --ei branch 1`、`PET_MUTATE`、`PET_DEGRADE`、`PET_GIVE_STARS --ei stars 50`、
-  `PET_WINDOW_ON/OFF`、`PET_WEEKEND_ON/OFF`、`PET_GENTLE_ON/OFF`、`PET_ROOM`、`PET_REPORT`、
+  `PET_WINDOW_ON/OFF`、`PET_FREE_PASS_ON/OFF`（今天免限）、`PET_WEEKEND_ON/OFF`、
+  `PET_GENTLE_ON/OFF`、`PET_ROOM`、`PET_REPORT`、
   `PET_STATE`（当前存档打到 logcat）、`PET_PARENT_ON/OFF`、`PET_RESET`、`PET_SETTINGS`。
 
 ## 页面与组件
@@ -56,7 +59,7 @@ app/src/com/dsh/tvhud/
 | `report/ChartAxis` / `BarStack` | 纵轴刻度与堆叠柱几何（周/月/年共用，纯函数，`tests/java` 覆盖） |
 | `pet/PetActivity` | 宠物房间：2.5D 宠物 + 照顾 / 商店 / 衣柜 / 房间 四个分区 + 等级/星星 |
 | `pet/PetGateActivity` | 场次到点拦截：休息 / 答 3 题续 5 分钟；60 秒默认休息；时间窗模式；返回键无效 |
-| `pet/PetSettingsActivity` | 家长设置：4 位 PIN（默认 2580）+ 时间规则 / 行为开关 / 周报入口 / 重置；首页菜单与宠物页长按返回 5 秒都能进 |
+| `pet/PetSettingsActivity` | 家长设置：4 位 PIN（默认 2580）+ 时间规则 / 今天免限 / 行为开关 / 周报入口 / 重置；首页菜单与宠物页长按返回 5 秒都能进 |
 | `pet/PetReportActivity` | 宠物周报：本周时长、场次、按时休息、超时、答题正确率、进化进度 |
 | `pet/PetView` / `PetState` / `PetEngine` / `Budget` / `QuizBank` / `PetStore` / `PetBubble` | 2.5D 骨骼渲染（分支/变异/退化/装备/装饰）、纯逻辑、场次预算、题库、存档、观看中预警气泡 |
 | `pet/Shop` / `PetJournal` / `PetUi` / `PetIconView` | 商店与衣柜纯逻辑、天级流水、统一视觉、Canvas 小图标 |

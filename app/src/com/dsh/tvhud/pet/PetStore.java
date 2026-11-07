@@ -70,6 +70,8 @@ public final class PetStore {
     private static final String K_GATE_OPEN = "gate_open";
     private static final String K_GATE_REASON = "gate_reason";
     private static final String K_PARENT_MODE = "parent_mode";
+    /** 家长发的「今天免限卡」：存的是发卡那天的 0 点时间戳，跨天自动失效。 */
+    private static final String K_FREE_PASS_DAY = "free_pass_day";
 
     private static final String K_CFG_SESSION_MIN = "cfg_session_minutes";
     private static final String K_CFG_MAX_SESSIONS = "cfg_max_sessions";
@@ -143,6 +145,13 @@ public final class PetStore {
         } else if (state.dayStart != today) {
             PetEngine.settleDay(state, 0, budget.maxSessions, false, today, degradeEnabled(ctx));
             state.rollDay(today);
+            rolled = true;
+        }
+        // 免限卡只管今天：跨天后旧卡必须从存档里删掉（它的 key 是独立的，
+        // 不随 saveBudget 走，所以这里直接改 prefs）。
+        if (freePassDay(ctx) != 0L && freePassDay(ctx) != today) {
+            revokeFreePass(ctx);
+            budget.freePassDay = 0L;
             rolled = true;
         }
         if (rolled) {
@@ -289,6 +298,9 @@ public final class PetStore {
         b.gateOpen = sp.getBoolean(K_GATE_OPEN, false);
         b.gateReason = sp.getInt(K_GATE_REASON, Budget.GATE_NORMAL);
         b.parentMode = sp.getBoolean(K_PARENT_MODE, false);
+        // 免限卡是「家长设置」而不是「当天预算」：它有自己的 key，
+        // saveBudget 不会写它，也就不会被旧的内存状态覆盖掉。
+        b.freePassDay = sp.getLong(K_FREE_PASS_DAY, 0L);
         readConfig(ctx, b);
         long refDay = b.dayStart > 0L ? b.dayStart : System.currentTimeMillis();
         b.maxSessions = Budget.effectiveMaxSessions(b.configuredMaxSessions, b.weekendBonus, refDay)
@@ -448,6 +460,41 @@ public final class PetStore {
     public static void setParentMode(Context ctx, boolean on) {
         ctx.getSharedPreferences(PREFS, 0).edit().putBoolean(K_PARENT_MODE, on).apply();
         sVersion++;
+    }
+
+    // ---------- 今天免限卡 ----------
+
+    /**
+     * 家长给今天发一张免限卡：今天不拦允许时段、场次上限也不拦，跨天自动失效。
+     *
+     * 存的是「今天 0 点」的时间戳而不是「还有多久失效」：这样电视断电、重启、
+     * 跨天后都自然恢复限制，不需要任何定时器去关。
+     */
+    public static void grantFreePass(Context ctx) {
+        ctx.getSharedPreferences(PREFS, 0).edit()
+                .putLong(K_FREE_PASS_DAY, Budget.dayStartOf(System.currentTimeMillis()))
+                .apply();
+        sVersion++;
+    }
+
+    /** 收回今天的免限卡。 */
+    public static void revokeFreePass(Context ctx) {
+        ctx.getSharedPreferences(PREFS, 0).edit().putLong(K_FREE_PASS_DAY, 0L).apply();
+        sVersion++;
+    }
+
+    /** 今天有没有免限卡（已经按当天 0 点比对过，跨天的旧卡返回 false）。 */
+    public static boolean hasFreePass(Context ctx) {
+        long day = ctx.getSharedPreferences(PREFS, 0).getLong(K_FREE_PASS_DAY, 0L);
+        return day > 0L && day == Budget.dayStartOf(System.currentTimeMillis());
+    }
+
+    /**
+     * 存档里记的免限卡是哪一天（0 = 没有）。
+     * 不做「是不是今天」的判断：调用方要自己比对，因为跨天时它得负责清掉旧卡。
+     */
+    public static long freePassDay(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, 0).getLong(K_FREE_PASS_DAY, 0L);
     }
 
     public static String pin(Context ctx) {

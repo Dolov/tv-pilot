@@ -11,7 +11,9 @@ import java.util.TimeZone;
  * - 只累计「视频」时间，中途暂停/关电视，本场剩余时间保留；
  * - 到点开闸门（gateOpen），休息记 1 场，答题通过 +5 分钟（每天最多 N 次）；
  * - 场次用完不再出题；家长时间不计数；
- * - 周末默认多 1 场（可关）；允许时段外只拦「新开的一场」，不追溯已在看的这一场。
+ * - 周末默认多 1 场（可关）；允许时段外只拦「新开的一场」，不追溯已在看的这一场；
+ * - 家长可以给「今天」发一张免限卡（freePassDay）：当天不拦时段、场次也放宽，
+ *   跨天自动失效（比对的是当天 0 点的时间戳，不用定时器）。
  */
 public final class Budget {
     public static final int DEFAULT_SESSION_MINUTES = 15;
@@ -38,6 +40,12 @@ public final class Budget {
     public int gateReason = GATE_NORMAL;
     /** 家长时间：不计数、不拦截。 */
     public boolean parentMode;
+
+    /**
+     * 家长给今天的「免限卡」：当天 0 点的时间戳（0 = 没有）。
+     * 有效时不拦允许时段、场次上限也不拦；跨天自动失效（存的是「哪一天」，不是「多久」）。
+     */
+    public long freePassDay;
 
     // 家长配置（PetSettingsActivity 写，PetStore 读）
     public int sessionMinutes = DEFAULT_SESSION_MINUTES;
@@ -73,6 +81,8 @@ public final class Budget {
         lastWarnLevel = 0;
         restUntil = 0L;
         extraSessions = 0;
+        // 免限卡只管今天：跨天就作废（昨天发的卡不能带过来）
+        freePassDay = 0L;
         maxSessions = effectiveMaxSessions(configuredMaxSessions, weekendBonus, todayStart);
     }
 
@@ -94,7 +104,11 @@ public final class Budget {
     }
 
     public int warnLevel() {
-        if (gateOpen || parentMode || sessionsUsed >= maxSessions) {
+        if (gateOpen || parentMode) {
+            return 0;
+        }
+        // 有免限卡时不提醒「快到点了」：今天不拦，提醒了也没意义
+        if (hasFreePass(System.currentTimeMillis()) || sessionsUsed >= maxSessions) {
             return 0;
         }
         long rem = remainingMs();
@@ -113,7 +127,15 @@ public final class Budget {
     }
 
     public void onVideo(long deltaMs, long now) {
-        if (deltaMs <= 0L || parentMode || gateOpen || sessionsUsed >= maxSessions) {
+        if (deltaMs <= 0L || parentMode || gateOpen) {
+            return;
+        }
+        // 免限卡：今天不拦（时段不拦、场次也不拦），只累计时间让宠物知道孩子在看
+        if (hasFreePass(now)) {
+            sessionMs += deltaMs;
+            return;
+        }
+        if (sessionsUsed >= maxSessions) {
             return;
         }
         // 允许时段：只拦「新开的一场」（本场还没累计时间时），不把正在看的动画片掐断
@@ -128,6 +150,26 @@ public final class Budget {
             sessionMs = limitMs();
             gateOpen = true;
         }
+    }
+
+    /**
+     * 今天的免限卡是否有效。
+     *
+     * 只认「今天」：freePassDay 是发卡那天的 0 点时间戳，跨天后自然对不上，
+     * 不需要定时器去关，也就不会出现「忘了关、孩子多看一天」的情况。
+     */
+    public boolean hasFreePass(long now) {
+        return freePassDay > 0L && freePassDay == dayStartOf(now);
+    }
+
+    /** 发一张今天的免限卡（当天有效，跨天自动失效）。 */
+    public void grantFreePass(long now) {
+        freePassDay = dayStartOf(now);
+    }
+
+    /** 收回免限卡。 */
+    public void revokeFreePass() {
+        freePassDay = 0L;
     }
 
     public boolean canQuiz() {
@@ -211,6 +253,23 @@ public final class Budget {
     }
 
     // ---------- 纯时间函数（可离线单测） ----------
+
+    /**
+     * 某一天 0 点的 wall-clock 毫秒（本地时区）。
+     *
+     * 为什么不在这里用 UsageDay.dayStartOf：那个类 import 了 Android 的 Context，
+     * 而 Budget 要能被离线单测直接编出来（tests/java/run.sh 只编纯逻辑 + 桩）。
+     * 这里用同样的算法（Calendar 归零时分秒），两边口径一致。
+     */
+    public static long dayStartOf(long wallMs) {
+        Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(wallMs);
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
 
     /** 今天有效的场次上限：周末默认 +1，可被家长关掉；再加临时加场。 */
     public static int effectiveMaxSessions(int configured, boolean weekendBonus, long now) {

@@ -188,6 +188,80 @@ public final class PetCoreTest {
             }
         });
 
+        runCase("今天免限：时段外不拦、场次用完也不拦", new Body() {
+            @Override
+            public void run() {
+                Budget b = new Budget();
+                b.dayStart = dayStart();
+                // 允许时段关掉也能测：先测「时段外」这条路径
+                b.windowEnabled = true;
+                b.windowStartMin = 17 * 60;
+                b.windowEndMin = 20 * 60;
+                // now() 是 2023-11-14 22:13 左右，本来就在时段外
+                check("默认在时段外", !Budget.inWindow(now(), b.windowStartMin, b.windowEndMin));
+
+                // 没有卡：时段外新开一场就被拦
+                b.onVideo(1000L, now());
+                eq("时段外被拦", true, b.gateOpen);
+                eq("闸门原因是时段", Budget.GATE_WINDOW, b.gateReason);
+
+                // 发卡：时段外不再拦
+                b.gateOpen = false;
+                b.gateReason = Budget.GATE_NORMAL;
+                b.sessionMs = 0L;
+                b.grantFreePass(now());
+                check("卡有效", b.hasFreePass(now()));
+                b.onVideo(1000L, now());
+                eq("有卡时段外不拦", false, b.gateOpen);
+                eq("有卡不记时段原因", Budget.GATE_NORMAL, b.gateReason);
+                eq("有卡照样累计时间", 1000L, b.sessionMs);
+
+                // 有卡：场次用完也不拦
+                b.sessionsUsed = b.maxSessions;
+                b.onVideo(1000L, now());
+                eq("有卡场次用完不拦", false, b.gateOpen);
+                check("有卡不提醒到点", b.warnLevel() == 0);
+            }
+        });
+
+        runCase("今天免限：跨天自动失效", new Body() {
+            @Override
+            public void run() {
+                Budget b = new Budget();
+                b.dayStart = dayStart();
+                b.grantFreePass(now());
+                check("今天有效", b.hasFreePass(now()));
+
+                // 明天：卡不再有效
+                long tomorrow = dayStart() + UsageDay.DAY_MS;
+                check("明天无效", !b.hasFreePass(tomorrow + 3600000L));
+
+                // rollDay 跨天后卡被清掉
+                b.rollDay(tomorrow);
+                eq("跨天清卡", 0L, b.freePassDay);
+                check("跨天后无效", !b.hasFreePass(tomorrow + 3600000L));
+
+                // 收回
+                b.rollDay(dayStart());
+                b.grantFreePass(now());
+                b.revokeFreePass();
+                eq("收回后为 0", 0L, b.freePassDay);
+                check("收回后无效", !b.hasFreePass(now()));
+            }
+        });
+
+        runCase("今天免限：发卡当天 0 点对得上，别的日子对不上", new Body() {
+            @Override
+            public void run() {
+                long today = Budget.dayStartOf(now());
+                eq("今天 0 点", today, Budget.dayStartOf(now() + 3600000L));
+                // 同一天内的另一个时刻（不能跨过午夜，所以用当天 0 点本身再算）
+                check("同一天同一值", today == Budget.dayStartOf(today + 3600000L));
+                check("隔一天不同值", today != Budget.dayStartOf(today + UsageDay.DAY_MS));
+                check("月底边界也按本地日界", today == Budget.dayStartOf(today + 86399000L));
+            }
+        });
+
         runCase("题库：解析、抽题、判分、非法题跳过", new Body() {
             @Override
             public void run() {
