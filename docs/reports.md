@@ -60,8 +60,7 @@ HomeActivity
 ├── 使用记录        → MainActivity（今日台账 + ←→ 历史回看）
 ├── 使用报告  ← 新增 → ReportsActivity（本设计）
 ├── 我的宠物        → PetActivity
-├── AI 语音助手     → 占位                          不变
-└── 设置            → 占位                          不变
+└── 家长设置        → PetSettingsActivity（PIN）
 ```
 
 `ReportsActivity` 一个 Activity，三种布局。**不是 tab 切换同一套 View**，而是按粒度走三套渲染函数

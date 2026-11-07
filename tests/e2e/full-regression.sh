@@ -2,14 +2,15 @@
 # 全量真机回归：把 tv-pilot 现有每个页面都走一遍并断言，确保改动不碰坏老功能。
 #
 # 覆盖：
-#   1. 首页：菜单 5 项都在，默认选中第 1 项；
+#   1. 首页：菜单 4 项都在，默认选中第 1 项；
 #   2. 今日使用：总时长/分类图例/时间轴/明细都渲染出来；
 #   3. 使用记录：能按天回看（落到最近有归档的一天），左右键翻日期；
 #   4. 使用报告：周/月/年三天粒度 + 翻页 + 回本期 + 返回；
 #   5. 电子宠物：房间 + 照顾/商店/衣柜/房间四个分区切换 + 返回；
-#   6. 屏保角标：HUD 服务在跑、无障碍条目在；
-#   7. 数据侧：归档文件可读、完整性自检无告警、报告不变量无告警；
-#   8. 全程无 FATAL EXCEPTION。
+#   6. 家长设置：首页菜单「家长设置」能进 PIN 页、返回回首页；
+#   7. 屏保角标：HUD 服务在跑、无障碍条目在；
+#   8. 数据侧：归档文件可读、完整性自检无告警、报告不变量无告警；
+#   9. 全程无 FATAL EXCEPTION。
 #
 # 用法：
 #   bash tests/e2e/full-regression.sh              # 装 .build/out/tv-pilot.apk 再全量跑
@@ -192,6 +193,25 @@ if resumed | grep -q 'com.dsh.tvhud/.home.HomeActivity'; then
   pass "宠物房间返回键回到首页"
 else
   fail "宠物房间返回键没回首页" "$(resumed)"
+fi
+
+# ---------- 6. 家长设置（首页菜单入口） ----------
+step "家长设置（首页菜单）"
+# 从顶部数第 4 项（使用记录 / 使用报告 / 我的宠物 / 家长设置），先按满 ↑ 归位
+for i in 1 2 3 4 5 6; do key 19 0.2; done
+for i in 1 2 3; do key 20 0.4; done
+key 23 3.0
+if resumed | grep -q 'com.dsh.tvhud/.pet.PetSettingsActivity'; then
+  pass "家长设置从首页菜单打开（PIN 页）"
+else
+  fail "家长设置没从首页菜单打开" "$(resumed)"
+fi
+screenshot "06-parent-settings"
+key 4 2.0
+if resumed | grep -q 'com.dsh.tvhud/.home.HomeActivity'; then
+  pass "家长设置返回键回到首页"
+else
+  fail "家长设置返回键没回首页" "$(resumed)"
 fi
 
 # ---------- 5. 屏保角标（服务 + 无障碍） ----------

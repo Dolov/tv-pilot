@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>tv-pilot · 使用报告方向稿</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .rep-hd { display: flex; align-items: center; justify-content: space-between; height: 34px; }
+  .rep-left { display: flex; align-items: center; gap: 18px; }
+  .rep-title { font-size: 29px; letter-spacing: .12em; color: var(--text); }
+  .vrule { width: 1px; height: 26px; background: var(--rule-2); }
+  .period-pill {
+    margin-left: 6px;
+    font-family: var(--din); font-size: 15px; letter-spacing: .06em; color: var(--text-2);
+    border: 1px solid var(--rule-2); border-radius: 999px; padding: 5px 14px;
+  }
+  .period-pill i { font-style: normal; color: var(--lamp); }
+  .rep-right { display: flex; align-items: center; gap: 34px; }
+  .tabs { display: flex; gap: 26px; align-items: center; }
+  .tab { position: relative; font-size: 18px; letter-spacing: .12em; color: var(--text-3); padding-bottom: 5px; }
+  .tab.on { color: var(--lamp); }
+  .tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--lamp); }
+  .arrows { display: flex; align-items: center; gap: 14px; font-size: 17px; color: var(--text-3); }
+  .arrows .cur { color: var(--text); letter-spacing: .10em; }
+  .arrows .chev { font-size: 24px; line-height: 1; color: var(--text-2); }
+
+  .insight { display: flex; align-items: center; gap: 14px; margin-top: 22px; }
+  .chip {
+    font-size: 14px; letter-spacing: .14em; color: var(--text-2);
+    border: 1px solid var(--rule-2); border-radius: 3px; padding: 3px 9px;
+  }
+  .insight p { font-size: 19px; letter-spacing: .04em; color: var(--text-2); }
+  .insight b { font-weight: 300; color: var(--text); }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 20px; }
+  .card {
+    position: relative;
+    background: var(--slab);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .card::before {
+    content: ""; position: absolute; left: 20px; top: 0; width: 64px; height: 2px;
+    background: var(--lamp); opacity: .85;
+  }
+  .kpi { padding: 15px 20px 14px; height: 118px; }
+  .kpi .k { display: flex; align-items: baseline; justify-content: space-between; }
+  .kpi .k span { font-size: 17px; letter-spacing: .10em; color: var(--text-2); }
+  .kpi .k em { font-style: normal; font-family: var(--din); font-size: 12px; letter-spacing: .18em; color: var(--text-3); }
+  .kpi .v { font-family: var(--din); font-size: 46px; letter-spacing: .02em; line-height: 1.18; color: var(--text); }
+  .kpi .s { font-size: 14px; letter-spacing: .05em; color: var(--text-3); }
+  .kpi .s b { font-weight: 300; color: var(--text-2); }
+
+  .row1 { display: grid; grid-template-columns: 1100px 612px; gap: 16px; margin-top: 16px; }
+  .row2 { display: grid; grid-template-columns: 1100px 612px; gap: 16px; margin-top: 16px; }
+  .panel { padding: 18px 22px 16px; }
+  .panel-hd { display: flex; align-items: baseline; justify-content: space-between; }
+  .panel-hd .t { display: flex; align-items: baseline; gap: 12px; }
+  .panel-hd .t b { font-weight: 300; font-size: 23px; letter-spacing: .08em; color: var(--text); }
+  .panel-hd .t i { font-style: normal; font-family: var(--din); font-size: 12px; letter-spacing: .20em; color: var(--text-3); }
+  .panel-hd .r { font-size: 14px; letter-spacing: .04em; color: var(--text-3); }
+
+  /* 7 天节奏 */
+  .rhythm { height: 292px; }
+  .rlegend { display: flex; gap: 18px; }
+  .rlegend .item { display: flex; align-items: center; gap: 7px; font-size: 14px; color: var(--text-2); }
+  .rlegend .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .chart { position: relative; height: 150px; margin-top: 22px; margin-left: 46px; margin-right: 12px; }
+  .gridline { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(244,238,227,.13); }
+  .gridline span { position: absolute; left: -44px; top: -9px; font-family: var(--din); font-size: 12px; color: var(--text-3); }
+  .bars { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); align-items: end; }
+  .slot { position: relative; display: flex; justify-content: center; align-items: flex-end; height: 100%; }
+  .slot .empty { position: absolute; bottom: 7px; font-size: 12px; letter-spacing: .04em; color: var(--text-3); }
+  .slot .bar { width: 54px; border-radius: 2px 2px 0 0; }
+  .avg { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--rule-2); }
+  .avg span { position: absolute; right: 0; top: -20px; font-family: var(--din); font-size: 12px; color: var(--text-3); }
+  .xaxis { display: grid; grid-template-columns: repeat(7, 1fr); margin-left: 46px; margin-right: 12px; margin-top: 9px; text-align: center; }
+  .xaxis .d { font-size: 16px; letter-spacing: .06em; color: var(--text-2); }
+  .xaxis .n { display: block; margin-top: 2px; font-family: var(--din); font-size: 12px; color: var(--text-3); }
+  .xaxis .off .d { color: var(--text-3); }
+
+  /* 日流水 */
+  .flow { height: 292px; }
+  .flow-row { display: flex; align-items: center; height: 34px; border-top: 1px solid var(--rule); }
+  .flow-row:first-of-type { border-top: 0; margin-top: 8px; }
+  .flow-row .d { width: 62px; font-size: 15px; color: var(--text-3); letter-spacing: .06em; }
+  .flow-row .r { width: 138px; font-family: var(--din); font-size: 14px; color: var(--text-2); }
+  .flow-row .dot { width: 6px; height: 6px; border-radius: 50%; margin: 0 9px 0 2px; }
+  .flow-row .t { flex: 1; font-size: 14px; color: var(--text-2); }
+  .flow-row .none { flex: 1; font-size: 13px; color: var(--text-3); }
+  .flow-row.off .d, .flow-row.off .r { color: #6E655A; }
+
+  /* 热力 */
+  .heat { height: 246px; }
+  .heatmap { margin-top: 18px; }
+  .hm-row { display: flex; align-items: center; height: 29px; gap: 4px; }
+  .hm-row .wd { width: 26px; font-size: 13px; color: var(--text-3); }
+  .cell { width: 26px; height: 24px; border-radius: 2px; }
+  .hm-hours { display: flex; margin-left: 30px; margin-top: 7px; gap: 4px; }
+  .hm-hours span { width: 26px; font-family: var(--din); font-size: 12px; color: var(--text-3); }
+  .hm-scale { position: absolute; right: 24px; top: 20px; display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-3); }
+  .hm-scale .ramp { display: flex; gap: 2px; }
+  .hm-scale .ramp i { width: 10px; height: 8px; border-radius: 1px; }
+
+  /* Top 榜 */
+  .top { height: 246px; }
+  .top-row { display: flex; align-items: center; height: 39px; border-top: 1px solid var(--rule); }
+  .top-row:first-of-type { border-top: 0; margin-top: 6px; }
+  .top-row .i { width: 36px; font-family: var(--din); font-size: 14px; color: var(--text-3); }
+  .top-row .n { flex: 1; font-size: 16px; color: var(--text-2); letter-spacing: .03em; }
+  .top-row .c {
+    font-size: 12px; color: var(--text-2); border: 1px solid var(--rule-2); border-radius: 3px;
+    padding: 1px 7px; margin-right: 18px;
+  }
+  .top-row .w { width: 92px; text-align: right; font-family: var(--din); font-size: 12px; color: var(--text-3); }
+
+  /* 周期条 */
+  .ribbon { margin-top: 16px; height: 84px; padding: 12px 22px; }
+  .ribbon .rb-left { position: absolute; left: 22px; top: 16px; }
+  .ribbon .rb-left .l { font-family: var(--din); font-size: 12px; letter-spacing: .22em; color: var(--text-3); }
+  .ribbon .rb-left .s { margin-top: 8px; font-size: 16px; color: var(--text-2); letter-spacing: .06em; }
+  .ribbon .rb-left .s em { font-style: normal; color: var(--text-3); }
+  .periods { position: absolute; left: 240px; right: 22px; top: 14px; height: 56px; display: flex; align-items: flex-end; gap: 0; }
+  .periods .p { position: relative; flex: 1; height: 100%; }
+  .periods .p .line { position: absolute; left: 0; right: 0; bottom: 24px; border-top: 1px solid var(--rule); }
+  .periods .p .b { position: absolute; bottom: 24px; left: 50%; width: 3px; transform: translateX(-50%); border-radius: 1px; background: var(--rule-2); }
+  .periods .p.on .b { width: 4px; background: var(--lamp); box-shadow: 0 0 10px var(--lamp-glow); }
+  .periods .p .lb { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); font-family: var(--din); font-size: 12px; color: var(--text-3); white-space: nowrap; }
+  .periods .p.on .lb { color: var(--lamp); }
+  .periods .p.on::after {
+    content: ""; position: absolute; left: 50%; transform: translateX(-50%); bottom: 21px;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--lamp);
+  }
+  .ribbon .hint { position: absolute; right: 22px; top: 18px; font-size: 12px; color: var(--text-3); letter-spacing: .04em; }
+</style>
+</head>
+<body>
+<div class="room">
+  <div class="page">
+
+    <header class="rep-hd">
+      <div class="rep-left">
+        <span class="brand">tv-pilot<span class="dot">.</span></span>
+        <span class="vrule"></span>
+        <span class="rep-title">使用报告</span>
+        <span class="period-pill">2026.11.03 – 11.09 &nbsp;·&nbsp; <i>进行中</i></span>
+      </div>
+      <div class="rep-right">
+        <div class="tabs">
+          <span class="tab on">周报</span>
+          <span class="tab">月报</span>
+          <span class="tab">年报</span>
+        </div>
+        <div class="arrows">
+          <span class="chev">‹</span><span class="cur">本周</span><span class="chev">›</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="insight">
+      <span class="chip">洞察</span>
+      <p>周五最长（<b>1:46</b>），周四 <b>0:38</b>；<b>16–17 点</b>最集中，周末还没开始。</p>
+    </div>
+
+    <section class="kpis">
+      <div class="card kpi">
+        <div class="k"><span>本期合计</span><em>TOTAL</em></div>
+        <div class="v">2h 24m</div>
+        <div class="s">已过 5 天 · 有记录 <b>2</b> 天</div>
+      </div>
+      <div class="card kpi">
+        <div class="k"><span>日均使用</span><em>AVG / DAY</em></div>
+        <div class="v">0h 29m</div>
+        <div class="s">上期日均 <b>0:22</b> · 多 0:07</div>
+      </div>
+      <div class="card kpi">
+        <div class="k"><span>单日峰值</span><em>PEAK DAY</em></div>
+        <div class="v">1h 46m</div>
+        <div class="s">周五 11/06 · 16:18 开始</div>
+      </div>
+      <div class="card kpi">
+        <div class="k"><span>周末日均</span><em>WEEKEND</em></div>
+        <div class="v">0h 00m</div>
+        <div class="s">工作日 <b>0:14</b></div>
+      </div>
+    </section>
+
+    <section class="row1">
+      <div class="card panel rhythm">
+        <div class="panel-hd">
+          <div class="t"><b>7 天节奏</b><i>DAILY RHYTHM</i></div>
+          <div class="rlegend">
+            <span class="item"><span class="dot" style="background:var(--video)"></span>视频</span>
+            <span class="item"><span class="dot" style="background:var(--kids)"></span>儿童学习</span>
+            <span class="item"><span class="dot" style="background:var(--system)"></span>桌面/系统</span>
+          </div>
+        </div>
+
+        <div class="chart">
+          <div class="gridline" style="bottom:84px"><span>1h</span></div>
+          <div class="gridline" style="bottom:42px"><span>30m</span></div>
+          <div class="gridline" style="bottom:0"><span>0</span></div>
+          <div class="avg" style="bottom:41px"><span>均值 0:29</span></div>
+          <div class="bars">
+            <div class="slot"><span class="empty">无记录</span></div>
+            <div class="slot"><span class="empty">无记录</span></div>
+            <div class="slot"><span class="empty">无记录</span></div>
+            <div class="slot"><span class="bar" style="height:53px;background:var(--video)"></span></div>
+            <div class="slot"><span class="bar" style="height:148px;background:var(--video)"></span></div>
+            <div class="slot"><span class="empty">未到</span></div>
+            <div class="slot"><span class="empty">未到</span></div>
+          </div>
+        </div>
+        <div class="xaxis">
+          <div class="off"><span class="d">周一</span><span class="n">11/02</span></div>
+          <div class="off"><span class="d">周二</span><span class="n">11/03</span></div>
+          <div class="off"><span class="d">周三</span><span class="n">11/04</span></div>
+          <div><span class="d">周四</span><span class="n">11/05</span></div>
+          <div><span class="d">周五</span><span class="n">11/06</span></div>
+          <div class="off"><span class="d">周六</span><span class="n">11/07</span></div>
+          <div class="off"><span class="d">周日</span><span class="n">11/08</span></div>
+        </div>
+      </div>
+
+      <div class="card panel flow">
+        <div class="panel-hd">
+          <div class="t"><b>日流水</b><i>DAY BY DAY</i></div>
+          <div class="r">每天从几点看到几点</div>
+        </div>
+        <div class="flow-row off">
+          <span class="d">周一</span><span class="r">11/02</span><span class="none">无记录</span>
+        </div>
+        <div class="flow-row off"><span class="d">周二</span><span class="r">11/03</span><span class="none">无记录</span></div>
+        <div class="flow-row off"><span class="d">周三</span><span class="r">11/04</span><span class="none">无记录</span></div>
+        <div class="flow-row"><span class="d">周四</span><span class="r">16:24 – 21:17</span><span class="dot" style="background:var(--video)"></span><span class="t">0:38 · 视频</span></div>
+        <div class="flow-row"><span class="d">周五</span><span class="r">16:18 – 20:04</span><span class="dot" style="background:var(--video)"></span><span class="t">1:46 · 视频 · 套圈记</span></div>
+        <div class="flow-row off"><span class="d">周六</span><span class="r">11/07</span><span class="none">未到</span></div>
+        <div class="flow-row off"><span class="d">周日</span><span class="r">11/08</span><span class="none">未到</span></div>
+      </div>
+    </section>
+
+    <section class="row2">
+      <div class="card panel heat">
+        <div class="panel-hd">
+          <div class="t"><b>时段分布</b><i>7 × 24 HEATMAP</i></div>
+          <div class="hm-scale">少
+            <span class="ramp">
+              <i style="background:rgba(247,236,215,.08)"></i>
+              <i style="background:rgba(247,236,215,.22)"></i>
+              <i style="background:rgba(247,236,215,.38)"></i>
+              <i style="background:rgba(247,236,215,.58)"></i>
+              <i style="background:rgba(247,236,215,.82)"></i>
+            </span>多
+          </div>
+        </div>
+        <div class="heatmap">
+          <!-- 7 行 × 24 列：只有周四 16–21 点、周五 16–21 点有值 -->
+          <div class="hm-row"><span class="wd">一</span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span></div>
+          <div class="hm-row"><span class="wd">二</span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span></div>
+          <div class="hm-row"><span class="wd">三</span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span></div>
+          <div class="hm-row"><span class="wd">四</span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.58)"></span><span class="cell" style="background:rgba(247,236,215,.82)"></span><span class="cell" style="background:rgba(247,236,215,.82)"></span><span class="cell" style="background:rgba(247,236,215,.58)"></span><span class="cell" style="background:rgba(247,236,215,.38)"></span><span class="cell" style="background:rgba(247,236,215,.22)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span></div>
+          <div class="hm-row"><span class="wd">五</span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.58)"></span><span class="cell" style="background:rgba(247,236,215,.82)"></span><span class="cell" style="background:rgba(247,236,215,.58)"></span><span class="cell" style="background:rgba(247,236,215,.38)"></span><span class="cell" style="background:rgba(247,236,215,.22)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span></div>
+          <div class="hm-row"><span class="wd">六</span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span></div>
+          <div class="hm-row"><span class="wd">日</span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span><span class="cell" style="background:rgba(247,236,215,.03)"></span></div>
+        </div>
+        <div class="hm-hours">
+          <span>0</span><span style="margin-left:96px">6</span><span style="margin-left:96px">12</span><span style="margin-left:96px">18</span><span style="margin-left:96px">24</span>
+        </div>
+      </div>
+
+      <div class="card panel top">
+        <div class="panel-hd">
+          <div class="t"><b>看了什么</b><i>TOP CONTENT</i></div>
+          <div class="r">按集数</div>
+        </div>
+        <div class="top-row">
+          <span class="i">01</span><span class="n">套圈记</span><span class="c">2 集</span><span class="w">最近 16:19</span>
+        </div>
+        <div class="top-row">
+          <span class="i">02</span><span class="n">谁的爆米花更大</span><span class="c">1 集</span><span class="w">最近 16:53</span>
+        </div>
+        <div class="top-row">
+          <span class="i">03</span><span class="n">哈基蜂购物遇强买强卖</span><span class="c">1 集</span><span class="w">最近 16:52</span>
+        </div>
+        <div class="top-row">
+          <span class="i">04</span><span class="n">藏宝图风波</span><span class="c">1 集</span><span class="w">最近 16:50</span>
+        </div>
+        <div class="top-row">
+          <span class="i">05</span><span class="n">大坝落枕急救事件</span><span class="c">1 集</span><span class="w">最近 16:50</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card ribbon">
+      <div class="rb-left">
+        <div class="l">PERIOD</div>
+        <div class="s">近 8 周 <em>· ← → 切换</em></div>
+      </div>
+      <div class="periods">
+        <div class="p"><span class="line"></span><span class="b" style="height:9px"></span><span class="lb">09/14</span></div>
+        <div class="p"><span class="line"></span><span class="b" style="height:14px"></span><span class="lb">09/21</span></div>
+        <div class="p"><span class="line"></span><span class="b" style="height:6px"></span><span class="lb">09/28</span></div>
+        <div class="p"><span class="line"></span><span class="b" style="height:20px"></span><span class="lb">10/05</span></div>
+        <div class="p"><span class="line"></span><span class="b" style="height:12px"></span><span class="lb">10/12</span></div>
+        <div class="p"><span class="line"></span><span class="b" style="height:17px"></span><span class="lb">10/19</span></div>
+        <div class="p"><span class="line"></span><span class="b" style="height:8px"></span><span class="lb">10/26</span></div>
+        <div class="p on"><span class="line"></span><span class="b" style="height:42px"></span><span class="lb">11/02</span></div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <div class="keys">
+        <span><span class="key">←</span> <span class="key">→</span> 切换周期</span>
+        <span><span class="key">↑</span> <span class="key">↓</span> 周 / 月 / 年</span>
+        <span><span class="key">OK</span> 回到本期</span>
+        <span><span class="key">返回</span> 退出</span>
+      </div>
+      <div class="ver">更新于 21:38 · 覆盖 2/5 天 · 数据只在本机</div>
+    </footer>
+
+  </div>
+</div>
+</body>
+</html>

@@ -2,6 +2,7 @@ package com.dsh.tvhud.home;
 
 import com.dsh.tvhud.hud.HudService;
 import com.dsh.tvhud.pet.PetActivity;
+import com.dsh.tvhud.pet.PetSettingsActivity;
 import com.dsh.tvhud.report.ReportsActivity;
 import com.dsh.tvhud.usage.MainActivity;
 import com.dsh.tvhud.usage.UsageDay;
@@ -17,7 +18,6 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -26,7 +26,7 @@ import java.util.Locale;
 /**
  * 首页菜单：打开 App 先到这里，再进详情页 / 使用记录。
  *
- * 为什么要菜单：详情页以后会长在「功能列表」里（AI 语音、设置…），
+ * 为什么要菜单：详情页以后会长在「功能列表」里，
  * 所以入口做成一列可扩展的条目，加功能只需要改 {@link #ITEMS}。
  * 版式沿用详情页的安静台账：中性底色 + 小字号 + 发丝线，颜色只留给数据。
  */
@@ -43,7 +43,7 @@ public class HomeActivity extends Activity {
     private static final int ACTION_RECORD = 0;
     private static final int ACTION_REPORT = 1;
     private static final int ACTION_PET = 2;
-    private static final int ACTION_SOON = 3;
+    private static final int ACTION_PET_SETTINGS = 3;
 
     /** 一个菜单条目。加功能时在 ITEMS 里加一行，action 写 ACTION_* 之类的分发。 */
     private static final class Item {
@@ -62,18 +62,14 @@ public class HomeActivity extends Activity {
             this.action = action;
             this.tag = tag;
         }
-
-        boolean enabled() {
-            return action != ACTION_SOON;
-        }
     }
 
     private static final Item[] ITEMS = {
             new Item("使用记录", "今日 · 历史 · 左右键切换日期", ACTION_RECORD),
             new Item("使用报告", "周报 · 月报 · 年报，趋势与构成", ACTION_REPORT),
             new Item("我的宠物", "商店 · 换装 · 装饰 · 进化", ACTION_PET),
-            new Item("AI 语音助手", "用手机说话，问电视看了什么", ACTION_SOON, "即将上线"),
-            new Item("设置", "ADB 守护 · 屏保角标", ACTION_SOON, "即将上线"),
+            new Item("家长设置", "每场时长 · 每天场次 · 允许时段 · 宠物周报",
+                    ACTION_PET_SETTINGS, "PIN"),
     };
 
     private Typeface cjk = Typeface.DEFAULT;
@@ -220,8 +216,6 @@ public class HomeActivity extends Activity {
     }
 
     private View buildRow(final int index, final Item item) {
-        final boolean enabled = item.enabled();
-
         final LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -245,7 +239,7 @@ public class HomeActivity extends Activity {
                 COL_TERTIARY, din, 0.06f);
         row.addView(idx, lp(dp(34), LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        final int nameBase = enabled ? 0xffcfd8e0 : COL_SECOND;
+        final int nameBase = 0xffcfd8e0;
         final TextView name = label(item.label, 15f, nameBase, cjk, 0.04f);
         row.addView(name, lp(dp(220), LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -284,17 +278,17 @@ public class HomeActivity extends Activity {
     }
 
     private void open(Item item) {
-        if (!item.enabled()) {
-            Toast.makeText(this, "「" + item.label + "」还没做，下个版本加上", Toast.LENGTH_SHORT)
-                    .show();
-            return;
-        }
         if (item.action == ACTION_REPORT) {
             startActivity(new Intent(this, ReportsActivity.class));
             return;
         }
         if (item.action == ACTION_PET) {
             startActivity(new Intent(this, PetActivity.class));
+            return;
+        }
+        if (item.action == ACTION_PET_SETTINGS) {
+            // 家长设置从首页直接进（不再只藏在宠物页长按返回里），PIN 在页内校验
+            startActivity(new Intent(this, PetSettingsActivity.class));
             return;
         }
         // 使用记录 = 今日台账 + 左右键按天回看（两页合并成一个入口）

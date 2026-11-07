@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>tv-pilot · 视觉系统 v2 · 方向板</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .board { width: 1920px; height: 2320px; padding: 58px 96px 40px; background: var(--ink); position: relative; overflow: hidden; }
+  .board::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(1200px 700px at 84% -12%, rgba(247,236,215,.045), transparent 62%),
+                radial-gradient(1000px 600px at 40% 118%, rgba(0,0,0,.32), transparent 70%);
+  }
+  .board > * { position: relative; z-index: 1; }
+  .bh { display: flex; align-items: flex-start; justify-content: space-between; }
+  .bh .l { display: flex; align-items: baseline; gap: 22px; }
+  .bh h2 { font-size: 40px; font-weight: 300; letter-spacing: .08em; }
+  .bh .sub { font-size: 17px; color: var(--text-3); letter-spacing: .06em; margin-top: 10px; }
+  .bh .r { text-align: right; font-family: var(--din); font-size: 13px; letter-spacing: .26em; color: var(--text-3); line-height: 2; }
+  .thesis { display: flex; align-items: baseline; gap: 26px; margin-top: 30px; }
+  .thesis .big { font-size: 52px; letter-spacing: .12em; color: var(--text); }
+  .thesis .big em { font-style: normal; color: var(--lamp); }
+  .thesis p { font-size: 18px; color: var(--text-2); letter-spacing: .04em; }
+  .principles { display: flex; gap: 40px; margin-top: 22px; }
+  .principles div { white-space: nowrap; }
+  .principles div { font-size: 16px; color: var(--text-3); letter-spacing: .03em; }
+  .principles b { font-weight: 300; color: var(--text-2); }
+
+  section.sec { border-top: 1px solid var(--rule); margin-top: 40px; padding-top: 24px; }
+  .sh { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+  .sh .no { font-family: var(--din); font-size: 13px; letter-spacing: .22em; color: var(--lamp); }
+  .sh .t { font-size: 26px; letter-spacing: .10em; color: var(--text); }
+  .sh .en { font-family: var(--din); font-size: 12px; letter-spacing: .24em; color: var(--text-3); }
+
+  /* 灯 */
+  .lamps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .lamp-card { height: 150px; border-radius: 4px; padding: 18px 20px; position: relative; }
+  .lamp-card .nm { font-size: 25px; letter-spacing: .10em; }
+  .lamp-card .id { position: absolute; left: 20px; bottom: 18px; font-family: var(--din); font-size: 13px; letter-spacing: .14em; opacity: .72; }
+  .lamp-card .cr { position: absolute; right: 20px; bottom: 18px; font-family: var(--din); font-size: 12px; opacity: .62; }
+  .lamp-card .use { position: absolute; left: 20px; top: 62px; font-size: 13px; letter-spacing: .14em; opacity: .78; }
+
+  /* 表面 */
+  .surface-row { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .surface-row .sw { width: 46px; height: 30px; border-radius: 2px; border: 1px solid var(--rule); }
+  .surface-row .lb { width: 150px; font-family: var(--din); font-size: 13px; letter-spacing: .12em; color: var(--text-3); }
+  .surface-row .hx { font-family: var(--din); font-size: 13px; color: var(--text-2); }
+  .surface-row .us { font-size: 14px; color: var(--text-3); letter-spacing: .04em; }
+
+  .two { display: grid; grid-template-columns: 700px 1fr; gap: 70px; }
+  .specimen { display: flex; flex-direction: column; gap: 12px; }
+  .sp-line { display: flex; align-items: baseline; gap: 22px; border-bottom: 1px solid var(--rule); padding-bottom: 10px; }
+  .sp-line .role { width: 118px; font-family: var(--din); font-size: 12px; letter-spacing: .16em; color: var(--text-3); }
+  .sp-line .sm { font-size: 14px; color: var(--text-3); }
+
+  /* 带子 */
+  .tapes { display: flex; flex-direction: column; gap: 30px; }
+  .tape-demo { display: flex; align-items: center; gap: 26px; }
+  .tape-demo .cap { width: 190px; font-size: 14px; color: var(--text-3); letter-spacing: .04em; }
+  .track-demo { position: relative; height: 10px; border-radius: 5px; background: rgba(244,238,227,.07); }
+  .segs { display: flex; height: 100%; }
+  .segs i { display: block; height: 100%; }
+  .ph { position: absolute; top: -6px; width: 2px; height: 22px; background: var(--lamp); }
+  .ph::before { content: ""; position: absolute; left: -3px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--lamp); }
+  .ticks-demo { position: relative; height: 18px; }
+  .ticks-demo i { position: absolute; top: 0; width: 1px; height: 6px; background: rgba(244,238,227,.22); }
+  .ticks-demo span { position: absolute; top: 8px; font-family: var(--din); font-size: 11px; color: var(--text-3); }
+  .anatomy { display: flex; gap: 30px; margin-top: 6px; padding-left: 216px; }
+  .anatomy div { font-size: 13px; color: var(--text-3); }
+  .anatomy b { font-weight: 300; color: var(--text-2); }
+  .anatomy i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 7px; }
+
+  /* 焦点 */
+  .focus-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .fg-title { font-size: 14px; letter-spacing: .14em; color: var(--text-3); margin-bottom: 14px; }
+  .row-demo { display: flex; align-items: center; height: 74px; padding: 0 20px; border-top: 1px solid var(--rule); position: relative; }
+  .row-demo .idx { width: 56px; font-family: var(--din); font-size: 15px; color: var(--text-3); }
+  .row-demo .nm { width: 200px; font-size: 23px; letter-spacing: .06em; color: var(--text-2); }
+  .row-demo .ds { flex: 1; font-size: 15px; color: var(--text-3); }
+  .row-demo .ch { font-size: 20px; color: var(--text-3); }
+  .row-demo.on { background: var(--lamp-wash); border-bottom: 1px solid var(--rule); }
+  .row-demo.on .nm { color: var(--text); }
+  .row-demo.on .idx, .row-demo.on .ch { color: var(--lamp); }
+  .row-demo.on .ds { color: var(--text-2); }
+  .row-demo .spine { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 5px; height: 34px; background: transparent; border-radius: 2px; }
+  .row-demo.on .spine { background: var(--lamp); }
+
+  .card-demo { width: 340px; height: 132px; border-radius: 22px; background: var(--slab-2); border: 1px solid var(--rule); padding: 18px 22px; }
+  .card-demo .ic { font-size: 34px; line-height: 1; }
+  .card-demo .t { margin-top: 10px; font-size: 24px; font-weight: 600; letter-spacing: .04em; color: var(--text); }
+  .card-demo .s { margin-top: 4px; font-size: 14px; color: var(--text-3); }
+  .card-demo.on { background: var(--lamp); border-color: #fff; box-shadow: 0 0 0 3px #fff, 0 0 26px var(--lamp-glow); }
+  .card-demo.on .t, .card-demo.on .s { color: var(--on-lamp); }
+  .card-demo.on .s { opacity: .78; }
+  .focus-notes { margin-top: 16px; }
+  .focus-notes li { list-style: none; font-size: 14px; color: var(--text-3); margin-bottom: 8px; padding-left: 16px; position: relative; }
+  .focus-notes li::before { content: "—"; position: absolute; left: 0; color: var(--text-3); }
+  .focus-notes b { font-weight: 300; color: var(--text-2); }
+
+  /* 数据色 */
+  .data-row { display: flex; gap: 16px; margin-top: 4px; }
+  .data-row .d { flex: 1; }
+  .data-row .bar { height: 8px; border-radius: 2px; margin-bottom: 10px; }
+  .data-row .n { font-size: 15px; color: var(--text-2); letter-spacing: .05em; }
+  .data-row .h { font-family: var(--din); font-size: 12px; color: var(--text-3); letter-spacing: .08em; }
+  .rule-note { margin-top: 18px; font-size: 15px; color: var(--text-3); letter-spacing: .03em; }
+  .rule-note b { font-weight: 300; color: var(--text-2); }
+
+  .foot { position: absolute; left: 96px; right: 96px; bottom: 34px; display: flex; justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+<div class="board">
+
+  <header class="bh">
+    <div class="l">
+      <div>
+        <div class="brand">tv-pilot<span class="dot">.</span></div>
+        <h2 style="margin-top:18px">视觉系统 v2 · 方向板</h2>
+        <div class="sub">统一样式，不是统一皮肤：一套语法，两种语气，四种页面。</div>
+      </div>
+    </div>
+    <div class="r">
+      1920 × 1080 / 10-FOOT UI<br>
+      遥 控 器 只 有 五 个 键<br>
+      DRAFT · 2026.11
+    </div>
+  </header>
+
+  <div class="thesis">
+    <div class="big">一条带子，<em>一盏灯</em>。</div>
+    <p>带子 = 今天看的时间，四屏同构；灯 = 你现在在哪，全 App 唯一的强调色。</p>
+  </div>
+  <div class="principles">
+    <div><b>01</b> 颜色只属于数据，灯光只属于焦点</div>
+    <div><b>02</b> 一条带子贯穿四屏</div>
+    <div><b>03</b> 角标不跟随主题</div>
+    <div><b>04</b> 发丝线分层，不用阴影</div>
+    <div><b>05</b> 焦点永远带几何</div>
+  </div>
+
+  <section class="sec">
+    <div class="sh"><span class="no">01</span><span class="t">灯 / LAMP</span><span class="en">主题色 = 客厅里留的那盏灯。四选一，只换这一族。</span></div>
+    <div class="lamps">
+      <div class="lamp-card" style="background:#F7ECD7; color:#141210">
+        <div class="nm">月白</div><div class="use">默认 · 纸的暖白</div>
+        <div class="id">LAMP.MOON</div><div class="cr">对比 16.2</div>
+      </div>
+      <div class="lamp-card" style="background:#FFC97A; color:#1B1206">
+        <div class="nm">琥珀</div><div class="use">晚间 · 低蓝光</div>
+        <div class="id">LAMP.EMBER</div><div class="cr">对比 12.6</div>
+      </div>
+      <div class="lamp-card" style="background:#B9A5FF; color:#141021">
+        <div class="nm">紫晶</div><div class="use">个性 · 与数据色不相邻</div>
+        <div class="id">LAMP.AMETHYST</div><div class="cr">对比 8.9</div>
+      </div>
+      <div class="lamp-card" style="background:#9FD3FF; color:#0C1720">
+        <div class="nm">冰蓝</div><div class="use">个性 · 冷色偏好</div>
+        <div class="id">LAMP.ICE</div><div class="cr">对比 12.0</div>
+      </div>
+    </div>
+    <div class="rule-note">对比度为「灯色文字压在 ink 底上」的实测值；灯色同时是焦点、选中、现在游标。<b>数据类别色不参与换肤。</b></div>
+  </section>
+
+  <section class="sec">
+    <div class="sh"><span class="no">02</span><span class="t">表面与字 / SURFACE & TYPE</span><span class="en">三层表面，一条发丝线；六个字号，两个字体角色。</span></div>
+    <div class="two">
+      <div>
+        <div class="surface-row"><span class="sw" style="background:#12100D"></span><span class="lb">INK</span><span class="hx">#12100D</span><span class="us">页面底 · 暖石墨</span></div>
+        <div class="surface-row"><span class="sw" style="background:#0A0907"></span><span class="lb">INK-DEEP</span><span class="hx">#0A0907</span><span class="us">暗角 / 覆盖层</span></div>
+        <div class="surface-row"><span class="sw" style="background:#1A1713"></span><span class="lb">SLAB</span><span class="hx">#1A1713</span><span class="us">面板 / KPI 卡</span></div>
+        <div class="surface-row"><span class="sw" style="background:#221E19"></span><span class="lb">SLAB-RAISED</span><span class="hx">#221E19</span><span class="us">焦点卡片 / 浮层</span></div>
+        <div class="surface-row"><span class="sw" style="background:#2A2620"></span><span class="lb">RULE</span><span class="hx">#2A2620</span><span class="us">1px 发丝线 / 轨道</span></div>
+        <div class="surface-row"><span class="sw" style="background:#3A342B"></span><span class="lb">RULE-STRONG</span><span class="hx">#3A342B</span><span class="us">键帽 / 选中底</span></div>
+        <div class="rule-note" style="margin-top:26px">
+          <b>文字三级</b>　#F4EEE3 / #C0B6A6 / #978C7B<br>
+          实测对比度 16.4 / 9.5 / <b>5.8 : 1</b>（旧版 3.1–3.5，3 米外偏暗）
+        </div>
+      </div>
+      <div class="specimen">
+        <div class="sp-line"><span class="role">MICRO 9</span><span style="font-family:var(--din); font-size:14px; letter-spacing:.20em; color:var(--text-3)">16:24 – 21:17 · 0:38 · 最近 16:19</span></div>
+        <div class="sp-line"><span class="role">CAPTION 10</span><span style="font-size:18px; color:var(--text-2); letter-spacing:.05em">本期合计 · 已过 6 天 · 有记录 2 天</span></div>
+        <div class="sp-line"><span class="role">BODY 12</span><span style="font-size:22px; color:var(--text); letter-spacing:.04em">周四最长，周五次之；16–17 点最集中。</span></div>
+        <div class="sp-line"><span class="role">EMPHASIS 15</span><span style="font-size:30px; color:var(--text); letter-spacing:.08em">使用记录</span></div>
+        <div class="sp-line"><span class="role">TITLE 22</span><span style="font-size:44px; color:var(--text); letter-spacing:.10em">使用报告</span></div>
+        <div class="sp-line" style="border-bottom:0"><span class="role">METRIC 26–34</span><span style="font-family:var(--din); font-size:56px; color:var(--text); letter-spacing:.02em">1h 46m</span></div>
+        <div class="rule-note" style="margin-top:10px">中文一档（MILanPro / 回退系统兰亭），数字一档（DIN Pro Medium，等宽数字）；报告页原先 5.2–8.5dp 的注释统一抬到 <b>9dp 下限</b>。</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sh"><span class="no">03</span><span class="t">一天一条带 / THE DAY TAPE</span><span class="en">同一个组件，四个尺度：首页 4dp · 记录 10dp · 报告周期条 · 角标 4dp。</span></div>
+    <div class="tapes">
+      <div class="tape-demo">
+        <div class="cap">首页眉标 · 微</div>
+        <div style="flex:1">
+          <div class="track-demo" style="height:8px">
+            <div class="segs">
+              <i style="width:32%; background:var(--video)"></i><i style="width:8%; background:var(--music)"></i>
+              <i style="width:10%; background:var(--kids)"></i><i style="width:8%; background:var(--system)"></i>
+            </div>
+            <div class="ph" style="left:62%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="tape-demo">
+        <div class="cap">使用记录 · 标准</div>
+        <div style="flex:1">
+          <div class="track-demo">
+            <div class="segs">
+              <i style="width:6%; background:var(--video)"></i><i style="width:4%; background:var(--other)"></i>
+              <i style="width:14%; background:var(--kids)"></i><i style="width:2%; background:var(--other)"></i>
+              <i style="width:18%; background:var(--video)"></i><i style="width:5%; background:var(--music)"></i>
+              <i style="width:9%; background:var(--video)"></i><i style="width:3%; background:var(--system)"></i>
+            </div>
+            <div class="ph" style="left:71%"></div>
+          </div>
+          <div class="ticks-demo">
+            <i style="left:0"></i><span style="left:-4px">0</span>
+            <i style="left:25%"></i><span style="left:calc(25% - 4px)">6</span>
+            <i style="left:50%"></i><span style="left:calc(50% - 6px)">12</span>
+            <i style="left:75%"></i><span style="left:calc(75% - 6px)">18</span>
+            <i style="left:100%"></i><span style="left:calc(100% - 10px)">24</span>
+          </div>
+        </div>
+      </div>
+      <div class="tape-demo">
+        <div class="cap">报告周期条 · 带节拍</div>
+        <div style="flex:1; position:relative; height:64px; border-top:1px solid var(--rule)">
+          <div style="position:absolute; left:0; right:0; bottom:22px; display:flex; gap:0; align-items:flex-end; height:42px">
+            <div style="flex:1; position:relative"><span style="position:absolute; left:50%; bottom:0; width:3px; height:10px; background:var(--rule-2)"></span></div>
+            <div style="flex:1; position:relative"><span style="position:absolute; left:50%; bottom:0; width:3px; height:16px; background:var(--rule-2)"></span></div>
+            <div style="flex:1; position:relative"><span style="position:absolute; left:50%; bottom:0; width:3px; height:7px; background:var(--rule-2)"></span></div>
+            <div style="flex:1; position:relative"><span style="position:absolute; left:50%; bottom:0; width:3px; height:22px; background:var(--rule-2)"></span></div>
+            <div style="flex:1; position:relative"><span style="position:absolute; left:50%; bottom:0; width:3px; height:13px; background:var(--rule-2)"></span></div>
+            <div style="flex:1; position:relative"><span style="position:absolute; left:50%; bottom:0; width:3px; height:18px; background:var(--rule-2)"></span></div>
+            <div style="flex:1; position:relative"><span style="position:absolute; left:50%; bottom:0; width:3px; height:9px; background:var(--rule-2)"></span></div>
+            <div style="flex:1; position:relative"><span style="position:absolute; left:50%; bottom:0; width:4px; height:42px; background:var(--lamp); box-shadow:0 0 10px var(--lamp-glow)"></span></div>
+          </div>
+          <div style="position:absolute; left:0; right:0; bottom:0; display:flex; font-family:var(--din); font-size:11px; color:var(--text-3)">
+            <span style="flex:1; text-align:center">09/14</span><span style="flex:1; text-align:center">09/21</span><span style="flex:1; text-align:center">09/28</span><span style="flex:1; text-align:center">10/05</span><span style="flex:1; text-align:center">10/12</span><span style="flex:1; text-align:center">10/19</span><span style="flex:1; text-align:center">10/26</span><span style="flex:1; text-align:center; color:var(--lamp)">11/02</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anatomy">
+      <div><i style="background:rgba(244,238,227,.25)"></i><b>轨道</b> 纸 8%</div>
+      <div><i style="background:var(--video)"></i><b>段</b> 类别色 · 最小 2dp</div>
+      <div><i style="background:var(--lamp)"></i><b>游标</b> 灯色 · 只表示「现在」</div>
+      <div><i style="background:rgba(244,238,227,.5)"></i><b>刻度</b> 纸 22% · 3 小时打标签</div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sh"><span class="no">04</span><span class="t">焦点与语气 / FOCUS & TONE</span><span class="en">同一套组件；家长看「账」，孩子看「温度」。</span></div>
+    <div class="focus-grid">
+      <div>
+        <div class="fg-title">LEDGER · 行焦点 = 10% 灯晕 + 5dp 色脊</div>
+        <div class="row-demo"><span class="spine"></span><span class="idx">01</span><span class="nm">使用记录</span><span class="ds">今日 · 历史 · 左右键切换日期</span><span class="ch">›</span></div>
+        <div class="row-demo on"><span class="spine"></span><span class="idx">02</span><span class="nm">使用报告</span><span class="ds">周报 · 月报 · 年报，趋势与构成</span><span class="ch">›</span></div>
+        <ul class="focus-notes">
+          <li>焦点必须带<b>几何</b>（脊 / 环 / 下划线），不能只变色</li>
+          <li>行用脊、卡片用环、Tab 用下划线；三处共用 <b>lamp</b></li>
+          <li>报告页无焦点：↑↓←→ 直接改视图，底部常驻键位提示</li>
+        </ul>
+      </div>
+      <div class="story">
+        <div class="fg-title">STORY · 卡片焦点 = 灯色实底 + 白环</div>
+        <div style="display:flex; gap:24px">
+          <div class="card-demo"><div class="ic">🥣</div><div class="t">吃饭</div><div class="s">免费 · 肚子饱饱</div></div>
+          <div class="card-demo on"><div class="ic">🥣</div><div class="t">吃饭</div><div class="s">免费 · 肚子饱饱</div></div>
+        </div>
+        <ul class="focus-notes">
+          <li>儿童区保留<b>整卡反色</b>：3 米外一眼看出选到哪</li>
+          <li>圆角 22 / 字号下限 16 / 按钮 ≥ 120×72dp</li>
+          <li>语气参数只改<b>形状、字重、密度</b>，不改 token 名</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="margin-top:34px">
+    <div class="sh"><span class="no">05</span><span class="t">数据色 / DATA</span><span class="en">固定色相，主题只能调明度。颜色就是图例。</span></div>
+    <div class="data-row">
+      <div class="d"><div class="bar" style="background:var(--video)"></div><div class="n">视频</div><div class="h">#F43098</div></div>
+      <div class="d"><div class="bar" style="background:var(--music)"></div><div class="n">音乐</div><div class="h">#00D3BB</div></div>
+      <div class="d"><div class="bar" style="background:var(--kids)"></div><div class="n">儿童学习</div><div class="h">#FFB74D</div></div>
+      <div class="d"><div class="bar" style="background:var(--system)"></div><div class="n">桌面/系统</div><div class="h">#90A4AE</div></div>
+      <div class="d"><div class="bar" style="background:var(--other)"></div><div class="n">其他</div><div class="h">#7A8794</div></div>
+    </div>
+    <div class="rule-note">「其他」从 #607D8B 提到 #7A8794（ink 底 4.3 → 5.2:1）；类别色不换色相，热力图改单灯色明度梯度，避免主题与图例打架。</div>
+  </section>
+
+  <div class="foot">
+    <div class="micro">TV-PILOT / VISUAL SYSTEM v2 / DRAFT</div>
+    <div class="ver">方向稿 · 非实现截图 · 字体以本机近似字体渲染</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>tv-pilot · 色系 / SCHEMES</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --din: "DIN Alternate", "Helvetica Neue", sans-serif;
+    --cjk: "PingFang SC", "Hiragino Sans GB", sans-serif;
+    --data-video: #F43098; --data-music: #00D3BB; --data-kids: #FFB74D; --data-system: #90A4AE;
+  }
+  html, body { width: 1920px; height: 1320px; background: #0B0A08; color: #F4EEE3; font-family: var(--cjk); font-weight: 300; -webkit-font-smoothing: antialiased; }
+  .board { width: 1920px; height: 1320px; padding: 54px 96px 36px; position: relative;
+           background: radial-gradient(1200px 700px at 80% -10%, rgba(247,236,215,.04), transparent 60%), #0B0A08; }
+  .din { font-family: var(--din); font-variant-numeric: tabular-nums; }
+  .micro { font-family: var(--din); font-size: 13px; letter-spacing: .24em; color: #8E8272; }
+
+  .bh { display: flex; justify-content: space-between; align-items: flex-start; }
+  .bh h1 { font-size: 38px; font-weight: 300; letter-spacing: .10em; margin-top: 16px; }
+  .bh .sub { margin-top: 10px; font-size: 17px; color: #A99C8A; letter-spacing: .04em; }
+  .bh .r { text-align: right; line-height: 1.9; }
+
+  .thesis { margin-top: 22px; font-size: 24px; letter-spacing: .06em; color: #E7DECD; }
+  .thesis b { font-weight: 300; color: #F7ECD7; }
+
+  /* 四套色系 */
+  .schemes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; margin-top: 26px; }
+  .s-warm {
+    --ink:#12100D; --slab:#1A1713; --slab2:#221E19; --rule:#2A2620;
+    --text:#F4EEE3; --text2:#C0B6A6; --text3:#978C7B;
+    --lamp:#F7ECD7; --onlamp:#141210; --wash:rgba(247,236,215,.10); --glow:rgba(247,236,215,.22);
+  }
+  .s-cool {
+    --ink:#0E1116; --slab:#161A21; --slab2:#1D222B; --rule:#262C36;
+    --text:#EAF0F7; --text2:#B4C0CE; --text3:#8E9AA8;
+    --lamp:#9FD3FF; --onlamp:#0C1720; --wash:rgba(159,211,255,.11); --glow:rgba(159,211,255,.22);
+  }
+  .s-indigo {
+    --ink:#0F1020; --slab:#181A30; --slab2:#20233D; --rule:#2B2F4C;
+    --text:#F2F0FA; --text2:#C2C2DA; --text3:#9A9BB6;
+    --lamp:#B9A5FF; --onlamp:#141021; --wash:rgba(185,165,255,.12); --glow:rgba(185,165,255,.24);
+  }
+  .s-black {
+    --ink:#000000; --slab:#0C0C0C; --slab2:#141414; --rule:#262626;
+    --text:#F2F2EE; --text2:#BFBFB8; --text3:#93938C;
+    --lamp:#F7ECD7; --onlamp:#0E0E0C; --wash:rgba(247,236,215,.09); --glow:rgba(247,236,215,.20);
+  }
+
+  .scheme { }
+  .scheme .head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .scheme .code { font-family: var(--din); font-size: 11px; letter-spacing: .18em; color: #7E7364; }
+  .scheme .nm { font-size: 22px; letter-spacing: .08em; color: #EFE6D6; }
+  .scheme .en { font-family: var(--din); font-size: 11px; letter-spacing: .22em; color: #7E7364; margin-left: auto; }
+
+  .mini {
+    background: var(--ink); border: 1px solid #2A2620; border-radius: 8px;
+    padding: 22px 22px 18px; height: 480px; position: relative; overflow: hidden;
+  }
+  .mini .mh { display: flex; justify-content: space-between; align-items: baseline; }
+  .mini .brand { font-family: var(--din); font-size: 13px; letter-spacing: .26em; color: var(--text2); }
+  .mini .brand i { font-style: normal; color: var(--lamp); }
+  .mini .date { font-size: 11px; letter-spacing: .04em; color: var(--text3); }
+  .mini h2 { margin-top: 16px; font-size: 30px; font-weight: 300; letter-spacing: .10em; color: var(--text); }
+  .mini .krow { display: flex; justify-content: space-between; align-items: baseline; margin-top: 22px; }
+  .mini .krow .k { font-size: 11px; letter-spacing: .16em; color: var(--text3); }
+  .mini .krow .v { font-family: var(--din); font-size: 24px; color: var(--text); }
+  .mini .krow .v small { font-size: 10px; color: var(--text3); margin-left: 6px; letter-spacing: .1em; }
+  .mini .tape { position: relative; height: 8px; margin-top: 8px; }
+  .mini .track { position: absolute; inset: 0; border-radius: 4px; background: rgba(255,255,255,.07); }
+  .mini .seg { position: absolute; top: 0; height: 8px; }
+  .mini .ph { position: absolute; top: -5px; width: 2px; height: 18px; background: var(--lamp); }
+  .mini .ph::before { content:""; position:absolute; left:-2.5px; top:-4px; width:7px; height:7px; border-radius:50%; background: var(--lamp); }
+  .mini .legend { display: flex; gap: 12px; margin-top: 12px; }
+  .mini .legend span { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text3); }
+  .mini .legend i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .mini .rows { margin-top: 20px; border-top: 1px solid var(--rule); }
+  .mini .row { display: flex; align-items: center; height: 58px; border-bottom: 1px solid var(--rule); padding: 0 10px 0 14px; position: relative; }
+  .mini .row .idx { font-family: var(--din); font-size: 11px; color: var(--text3); width: 34px; }
+  .mini .row .rn { font-size: 19px; letter-spacing: .05em; color: var(--text2); }
+  .mini .row .chev { margin-left: auto; font-size: 18px; color: var(--text3); }
+  .mini .row.on { background: var(--wash); }
+  .mini .row.on::before { content:""; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 4px; height: 26px; background: var(--lamp); border-radius: 1px; }
+  .mini .row.on .idx, .mini .row.on .chev { color: var(--lamp); }
+  .mini .row.on .rn { color: var(--text); }
+  .mini .sw { display: flex; gap: 8px; margin-top: 20px; }
+  .mini .sw div { flex: 1; }
+  .mini .sw i { display: block; height: 22px; border-radius: 3px; border: 1px solid rgba(255,255,255,.08); }
+  .mini .sw span { display: block; margin-top: 5px; font-family: var(--din); font-size: 8.5px; letter-spacing: .04em; color: var(--text3); }
+
+  /* 配置面板 + 规则 */
+  .bottom { display: grid; grid-template-columns: 1040px 1fr; gap: 64px; margin-top: 30px; }
+  .cfg { background: #12100D; border: 1px solid #2A2620; border-radius: 10px; padding: 20px 24px; }
+  .cfg .ct { display: flex; justify-content: space-between; align-items: baseline; }
+  .cfg .ct b { font-weight: 300; font-size: 21px; letter-spacing: .08em; }
+  .cfg .ct span { font-family: var(--din); font-size: 10px; letter-spacing: .2em; color: #8E8272; }
+  .cfg-row { display: flex; align-items: center; gap: 14px; height: 54px; border-top: 1px solid #2A2620; }
+  .cfg-row:first-of-type { border-top: 0; margin-top: 8px; }
+  .cfg-row .k { width: 96px; font-size: 14px; letter-spacing: .08em; color: #C0B6A6; }
+  .opt { display: flex; align-items: center; gap: 8px; padding: 5px 12px; border: 1px solid #3A342B; border-radius: 3px; font-size: 12px; color: #C0B6A6; }
+  .opt i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .opt.on { border-color: #F7ECD7; color: #F4EEE3; box-shadow: 0 0 0 1px rgba(247,236,215,.25); }
+  .lamp-opt { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; }
+  .lamp-opt.on { border-color: #F4EEE3; box-shadow: 0 0 14px rgba(247,236,215,.3); }
+  .cfg-row .hint { margin-left: auto; font-size: 11px; color: #7E7364; letter-spacing: .03em; }
+  .toggle { width: 58px; height: 26px; border-radius: 13px; background: #2A2620; position: relative; }
+  .toggle::after { content:""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #8E8272; }
+  .toggle.on { background: rgba(247,236,215,.25); }
+  .toggle.on::after { left: 35px; background: #F7ECD7; }
+
+  .rules h3 { font-size: 13px; letter-spacing: .18em; color: #8E8272; font-weight: 300; margin-bottom: 14px; }
+  .rules li { list-style: none; position: relative; padding-left: 18px; margin-bottom: 12px; font-size: 13.5px; line-height: 1.6; color: #A99C8A; }
+  .rules li::before { content: "—"; position: absolute; left: 0; color: #6E655A; }
+  .rules b { font-weight: 300; color: #E7DECD; }
+
+  /* 组合矩阵 */
+  .matrix { margin-top: 24px; }
+  .matrix .mt { font-family: var(--din); font-size: 10px; letter-spacing: .2em; color: #7E7364; margin-bottom: 8px; }
+  .matrix table { width: 100%; border-collapse: collapse; }
+  .matrix td, .matrix th { text-align: left; padding: 6px 10px; border-top: 1px solid #24211D; font-size: 11px; color: #A99C8A; }
+  .matrix th { font-family: var(--din); font-size: 9.5px; letter-spacing: .16em; color: #7E7364; font-weight: 400; }
+  .matrix .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .matrix .ok { color: #978C7B; }
+
+  .foot { position: absolute; left: 96px; right: 96px; bottom: 26px; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="board">
+
+  <header class="bh">
+    <div>
+      <div class="micro">TV-PILOT / APPEARANCE</div>
+      <h1>色系 / SCHEMES</h1>
+      <div class="sub">底色系与灯色是两个独立轴：4 × 4 = 16 个组合，全部可配置，全部有断言。</div>
+    </div>
+    <div class="r micro">
+      1920 × 1080 / 10-FOOT UI<br>
+      配 置 只 在 家 长 设 置（PIN）<br>
+      DRAFT · 2026.11
+    </div>
+  </header>
+
+  <div class="thesis">可配置的是<b>底色系</b>与<b>灯色</b>；不可配置的是<b>数据类别色</b>、<b>语气</b>与<b>角标</b>。</div>
+
+  <section class="schemes">
+
+    <div class="scheme s-warm">
+      <div class="head"><span class="code">01</span><span class="nm">暖石墨</span><span class="en">WARM</span></div>
+      <div class="mini">
+        <div class="mh"><span class="brand">tv-pilot<i>.</i></span><span class="date">2026-11-06 周五</span></div>
+        <h2>使用台账</h2>
+        <div class="krow"><span class="k">今日 · 24 小时</span><span class="v">1:46<small>合计</small></span></div>
+        <div class="tape">
+          <div class="track"></div>
+          <div class="seg" style="left:67.9%; width:2.4%; background:var(--data-video)"></div>
+          <div class="seg" style="left:71.2%; width:0.8%; background:var(--data-music)"></div>
+          <div class="seg" style="left:72.9%; width:1.0%; background:var(--data-kids)"></div>
+          <div class="seg" style="left:75.7%; width:0.7%; background:var(--data-video)"></div>
+          <div class="seg" style="left:77.8%; width:1.5%; background:var(--data-video)"></div>
+          <div class="seg" style="left:82.8%; width:0.8%; background:var(--data-system)"></div>
+          <div class="ph" style="left:83.6%"></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--data-video)"></i>视频</span>
+          <span><i style="background:var(--data-music)"></i>音乐</span>
+          <span><i style="background:var(--data-kids)"></i>儿童学习</span>
+          <span><i style="background:var(--data-system)"></i>系统</span>
+        </div>
+        <div class="rows">
+          <div class="row on"><span class="idx">01</span><span class="rn">使用记录</span><span class="chev">›</span></div>
+          <div class="row"><span class="idx">02</span><span class="rn">使用报告</span><span class="chev">›</span></div>
+          <div class="row"><span class="idx">03</span><span class="rn">我的宠物</span><span class="chev">›</span></div>
+        </div>
+        <div class="sw">
+          <div><i style="background:var(--ink)"></i><span>#12100D</span></div>
+          <div><i style="background:var(--slab)"></i><span>#1A1713</span></div>
+          <div><i style="background:var(--slab2)"></i><span>#221E19</span></div>
+          <div><i style="background:var(--rule)"></i><span>#2A2620</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scheme s-cool">
+      <div class="head"><span class="code">02</span><span class="nm">冷石墨</span><span class="en">COOL</span></div>
+      <div class="mini">
+        <div class="mh"><span class="brand">tv-pilot<i>.</i></span><span class="date">2026-11-06 周五</span></div>
+        <h2>使用台账</h2>
+        <div class="krow"><span class="k">今日 · 24 小时</span><span class="v">1:46<small>合计</small></span></div>
+        <div class="tape">
+          <div class="track"></div>
+          <div class="seg" style="left:67.9%; width:2.4%; background:var(--data-video)"></div>
+          <div class="seg" style="left:71.2%; width:0.8%; background:var(--data-music)"></div>
+          <div class="seg" style="left:72.9%; width:1.0%; background:var(--data-kids)"></div>
+          <div class="seg" style="left:75.7%; width:0.7%; background:var(--data-video)"></div>
+          <div class="seg" style="left:77.8%; width:1.5%; background:var(--data-video)"></div>
+          <div class="seg" style="left:82.8%; width:0.8%; background:var(--data-system)"></div>
+          <div class="ph" style="left:83.6%"></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--data-video)"></i>视频</span>
+          <span><i style="background:var(--data-music)"></i>音乐</span>
+          <span><i style="background:var(--data-kids)"></i>儿童学习</span>
+          <span><i style="background:var(--data-system)"></i>系统</span>
+        </div>
+        <div class="rows">
+          <div class="row on"><span class="idx">01</span><span class="rn">使用记录</span><span class="chev">›</span></div>
+          <div class="row"><span class="idx">02</span><span class="rn">使用报告</span><span class="chev">›</span></div>
+          <div class="row"><span class="idx">03</span><span class="rn">我的宠物</span><span class="chev">›</span></div>
+        </div>
+        <div class="sw">
+          <div><i style="background:var(--ink)"></i><span>#0E1116</span></div>
+          <div><i style="background:var(--slab)"></i><span>#161A21</span></div>
+          <div><i style="background:var(--slab2)"></i><span>#1D222B</span></div>
+          <div><i style="background:var(--rule)"></i><span>#262C36</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scheme s-indigo">
+      <div class="head"><span class="code">03</span><span class="nm">靛夜</span><span class="en">INDIGO</span></div>
+      <div class="mini">
+        <div class="mh"><span class="brand">tv-pilot<i>.</i></span><span class="date">2026-11-06 周五</span></div>
+        <h2>使用台账</h2>
+        <div class="krow"><span class="k">今日 · 24 小时</span><span class="v">1:46<small>合计</small></span></div>
+        <div class="tape">
+          <div class="track"></div>
+          <div class="seg" style="left:67.9%; width:2.4%; background:var(--data-video)"></div>
+          <div class="seg" style="left:71.2%; width:0.8%; background:var(--data-music)"></div>
+          <div class="seg" style="left:72.9%; width:1.0%; background:var(--data-kids)"></div>
+          <div class="seg" style="left:75.7%; width:0.7%; background:var(--data-video)"></div>
+          <div class="seg" style="left:77.8%; width:1.5%; background:var(--data-video)"></div>
+          <div class="seg" style="left:82.8%; width:0.8%; background:var(--data-system)"></div>
+          <div class="ph" style="left:83.6%"></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--data-video)"></i>视频</span>
+          <span><i style="background:var(--data-music)"></i>音乐</span>
+          <span><i style="background:var(--data-kids)"></i>儿童学习</span>
+          <span><i style="background:var(--data-system)"></i>系统</span>
+        </div>
+        <div class="rows">
+          <div class="row on"><span class="idx">01</span><span class="rn">使用记录</span><span class="chev">›</span></div>
+          <div class="row"><span class="idx">02</span><span class="rn">使用报告</span><span class="chev">›</span></div>
+          <div class="row"><span class="idx">03</span><span class="rn">我的宠物</span><span class="chev">›</span></div>
+        </div>
+        <div class="sw">
+          <div><i style="background:var(--ink)"></i><span>#0F1020</span></div>
+          <div><i style="background:var(--slab)"></i><span>#181A30</span></div>
+          <div><i style="background:var(--slab2)"></i><span>#20233D</span></div>
+          <div><i style="background:var(--rule)"></i><span>#2B2F4C</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scheme s-black">
+      <div class="head"><span class="code">04</span><span class="nm">纯黑</span><span class="en">BLACK</span></div>
+      <div class="mini">
+        <div class="mh"><span class="brand">tv-pilot<i>.</i></span><span class="date">2026-11-06 周五</span></div>
+        <h2>使用台账</h2>
+        <div class="krow"><span class="k">今日 · 24 小时</span><span class="v">1:46<small>合计</small></span></div>
+        <div class="tape">
+          <div class="track"></div>
+          <div class="seg" style="left:67.9%; width:2.4%; background:var(--data-video)"></div>
+          <div class="seg" style="left:71.2%; width:0.8%; background:var(--data-music)"></div>
+          <div class="seg" style="left:72.9%; width:1.0%; background:var(--data-kids)"></div>
+          <div class="seg" style="left:75.7%; width:0.7%; background:var(--data-video)"></div>
+          <div class="seg" style="left:77.8%; width:1.5%; background:var(--data-video)"></div>
+          <div class="seg" style="left:82.8%; width:0.8%; background:var(--data-system)"></div>
+          <div class="ph" style="left:83.6%"></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--data-video)"></i>视频</span>
+          <span><i style="background:var(--data-music)"></i>音乐</span>
+          <span><i style="background:var(--data-kids)"></i>儿童学习</span>
+          <span><i style="background:var(--data-system)"></i>系统</span>
+        </div>
+        <div class="rows">
+          <div class="row on"><span class="idx">01</span><span class="rn">使用记录</span><span class="chev">›</span></div>
+          <div class="row"><span class="idx">02</span><span class="rn">使用报告</span><span class="chev">›</span></div>
+          <div class="row"><span class="idx">03</span><span class="rn">我的宠物</span><span class="chev">›</span></div>
+        </div>
+        <div class="sw">
+          <div><i style="background:var(--ink)"></i><span>#000000</span></div>
+          <div><i style="background:var(--slab)"></i><span>#0C0C0C</span></div>
+          <div><i style="background:var(--slab2)"></i><span>#141414</span></div>
+          <div><i style="background:var(--rule)"></i><span>#262626</span></div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="bottom">
+    <div class="cfg">
+      <div class="ct"><b>家长设置 · 外观</b><span>LOCKED BY PIN</span></div>
+      <div class="cfg-row">
+        <span class="k">色系</span>
+        <span class="opt on"><i style="background:#12100D"></i>暖石墨</span>
+        <span class="opt"><i style="background:#0E1116"></i>冷石墨</span>
+        <span class="opt"><i style="background:#0F1020"></i>靛夜</span>
+        <span class="opt"><i style="background:#000"></i>纯黑</span>
+        <span class="hint">按客厅亮度选，不改变数据色</span>
+      </div>
+      <div class="cfg-row">
+        <span class="k">灯色</span>
+        <span class="lamp-opt on" style="background:#F7ECD7"></span>
+        <span class="lamp-opt" style="background:#FFC97A"></span>
+        <span class="lamp-opt" style="background:#B9A5FF"></span>
+        <span class="lamp-opt" style="background:#9FD3FF"></span>
+        <span class="hint">焦点 / 选中 / 现在游标</span>
+      </div>
+      <div class="cfg-row">
+        <span class="k">夜间调暗</span>
+        <span class="toggle"></span>
+        <span class="hint">只压角标与高光，不改主题；孩子区固定 story 语气</span>
+      </div>
+      <div class="matrix">
+        <div class="mt">16 个组合的灯色对比度（对各自 ink 底，全部 ≥ 4.5:1）</div>
+        <table>
+          <tr><th>SCHEME</th><th>月白</th><th>琥珀</th><th>紫晶</th><th>冰蓝</th></tr>
+          <tr><td>暖石墨</td><td class="ok">16.2</td><td class="ok">12.6</td><td class="ok">8.9</td><td class="ok">12.0</td></tr>
+          <tr><td>冷石墨</td><td class="ok">16.2</td><td class="ok">12.5</td><td class="ok">8.9</td><td class="ok">11.9</td></tr>
+          <tr><td>靛夜</td><td class="ok">16.1</td><td class="ok">12.5</td><td class="ok">8.9</td><td class="ok">11.9</td></tr>
+          <tr><td>纯黑</td><td class="ok">17.9</td><td class="ok">13.9</td><td class="ok">9.9</td><td class="ok">13.2</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="rules">
+      <h3>RULES / 边界</h3>
+      <li><b>数据类别色不参与。</b>视频粉 / 音乐青 / 儿童橙 / 系统灰在任何色系下色相不变，只允许微调明度。</li>
+      <li><b>纯黑只对 OLED 推荐。</b>LCD 上会显灰；近黑渐变更容易出色带，所以默认仍是暖石墨。</li>
+      <li><b>语气与角标不开放。</b>孩子区固定 story，屏保角标固定白字 + 投影，不跟主题。</li>
+      <li><b>新增色系只加数据。</b>4 个 token 组 + 1 条对比度断言即可，不改组件、不改布局。</li>
+      <li><b>不提供任意取色。</b>16 个组合是策展边界，保证 3 米可读与类别可辨。</li>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <div class="micro">TV-PILOT / SCHEMES / DRAFT</div>
+    <div class="micro">方向稿 · 非实现截图 · 字体为本机近似字体</div>
+  </footer>
+
+</div>
+</body>
+</html>
