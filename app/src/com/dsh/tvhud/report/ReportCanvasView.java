@@ -547,13 +547,13 @@ public abstract class ReportCanvasView extends View {
                 rect.set(cx - bw / 2f - 3f, baseY - bh - 3f, cx + bw / 2f + 3f, baseY);
                 c.drawRoundRect(rect, 2f, 2f, stroke);
             }
-            // 文字基线在基线下方 12 逻辑像素：选中柱再高也不会盖住日期
-            text(c, st.label, cx, y + 50f, 6.5f,
+            // 文字基线在基线下方 9 逻辑像素：选中柱再高也不会盖住日期，又不至于离柱子太远
+            text(c, st.label, cx, y + 47f, 6.5f,
                     sel ? 0xffe8f6ff : (st.outOfRange ? 0xff3a4654 : C_DIM), din,
                     Paint.Align.CENTER, 0.2f);
             if (st.current) {
                 fill.setColor(C_CYAN);
-                c.drawCircle(cx + measure(st.label, 6.5f, din, 0.2f) / 2f + 3f, y + 48f,
+                c.drawCircle(cx + measure(st.label, 6.5f, din, 0.2f) / 2f + 3f, y + 45f,
                         1.4f, fill);
             }
         }
