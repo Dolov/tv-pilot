@@ -41,8 +41,9 @@ public abstract class ReportCanvasView extends View {
     protected static final float ROW2_TOP = 302f;
     protected static final float ROW2_H = 152f;
     protected static final float RIBBON_TOP = 460f;
-    protected static final float RIBBON_H = 48f;
-    protected static final float FOOTER_TOP = 514f;
+    protected static final float RIBBON_H = 52f;
+    /** 页脚再往下压一点，尽量贴住屏幕底边（540 逻辑像素）。 */
+    protected static final float FOOTER_TOP = 525f;
 
     protected static final int C_BG = 0xff06090f;
     protected static final int C_TEXT = 0xffe8f0f8;
@@ -515,7 +516,12 @@ public abstract class ReportCanvasView extends View {
             max = Math.max(max, list.get(i).totalMs);
         }
         float barMaxH = 17f;
-        float baseY = y + 40f;
+        // 柱子的基线；日期/周期文字统一画在基线下面，不再压进选中的柱子里
+        float baseY = y + 38f;
+        stroke.setShader(null);
+        stroke.setColor(0x2469aacc);
+        stroke.setStrokeWidth(0.5f);
+        c.drawLine(areaX, baseY, areaX + areaW, baseY, stroke);
         for (int i = 0; i < count; i++) {
             Report.PeriodStat st = list.get(i);
             float sx = areaX + slotW * i;
@@ -538,15 +544,16 @@ public abstract class ReportCanvasView extends View {
             if (sel) {
                 stroke.setColor(0x6638bdf8);
                 stroke.setStrokeWidth(0.8f);
-                rect.set(cx - bw / 2f - 3f, baseY - bh - 3f, cx + bw / 2f + 3f, baseY + 4f);
+                rect.set(cx - bw / 2f - 3f, baseY - bh - 3f, cx + bw / 2f + 3f, baseY);
                 c.drawRoundRect(rect, 2f, 2f, stroke);
             }
-            text(c, st.label, cx, y + 46f, 6.5f,
+            // 文字基线在基线下方 12 逻辑像素：选中柱再高也不会盖住日期
+            text(c, st.label, cx, y + 50f, 6.5f,
                     sel ? 0xffe8f6ff : (st.outOfRange ? 0xff3a4654 : C_DIM), din,
                     Paint.Align.CENTER, 0.2f);
             if (st.current) {
                 fill.setColor(C_CYAN);
-                c.drawCircle(cx + measure(st.label, 6.5f, din, 0.2f) / 2f + 3f, y + 44f,
+                c.drawCircle(cx + measure(st.label, 6.5f, din, 0.2f) / 2f + 3f, y + 48f,
                         1.4f, fill);
             }
         }
