@@ -1,6 +1,9 @@
 package com.dsh.tvhud.usage;
 
 import com.dsh.tvhud.hud.HudService;
+import com.dsh.tvhud.ui.Palette;
+import com.dsh.tvhud.ui.TapeView;
+import com.dsh.tvhud.ui.ThemeStore;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -31,8 +34,8 @@ import java.util.Locale;
 /**
  * 详情页：今天的「人在看」时间轴 + 分段明细（起止时间、时长、类别）。
  *
- * 设计语言：一张安静的使用台账。
- * - 中性色打底（近黑蓝灰），颜色只出现在数据上：时间轴色块 / 分类圆点 / 行首色脊；
+ * 设计语言：一张安静的观看记录。
+ * - 主题中性色打底（ink / 三级文本），颜色只出现在数据上：时间轴色块 / 分类圆点 / 行首色脊；
  * - 时间码用 DIN Pro（表格式排布），合计数字用屏保同款细体，中文用系统兰亭；
  * - 尺寸克制：正文 15dp、标签 10–12dp，靠字距和留白分区，而不是靠大字号。
  * 屏保角标不受影响。
@@ -42,23 +45,19 @@ public class MainActivity extends Activity {
     /** 详情页刷新间隔：一分钟一次就够（秒级刷新会让列表不断重建、焦点被打断）。 */
     private static final long REFRESH_MS = 60000L;
 
-    // 中性色（只有数据用彩色）
-    private static final int COL_BG = 0xff0e1114;
-    private static final int COL_PRIMARY = 0xffe9eef3;
-    private static final int COL_SECOND = 0xff9aa7b2;
-    private static final int COL_TERTIARY = 0xff5f6b76;
-    private static final int COL_HAIRLINE = 0x288a97a4;
-    private static final int COL_FOCUS = 0x18ffffff;
-
     private Typeface cjk = Typeface.DEFAULT;
     private Typeface num = Typeface.DEFAULT;   // 细体数字（与屏保同款）
     private Typeface din = Typeface.DEFAULT;   // 时间码 / 小标签
+
+    /** 当前外观；onResume 里比对 revision，变了就重建。 */
+    private Palette palette;
+    private int themeRev;
 
     private TextView metaLine;
     private TextView totalValue;
     private LinearLayout catRow;
     private LinearLayout listContainer;
-    private TimelineView timeline;
+    private TapeView timeline;
     private TextView eyebrow;
     private ScrollView scrollView;
     private long shownDay = 0L;
@@ -81,6 +80,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle bundle) {
         super.onCreate(bundle);
+        palette = ThemeStore.look(this).palette();
+        themeRev = ThemeStore.rev(this);
         initFonts();
         buildUi();
         startService(new Intent(this, HudService.class));
@@ -127,6 +128,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (themeRev != ThemeStore.rev(this)) {
+            recreate();
+            return;
+        }
         refresh();
         handler.removeCallbacks(ticker);
         handler.postDelayed(ticker, REFRESH_MS);
@@ -186,7 +191,7 @@ public class MainActivity extends Activity {
 
     private View hairline() {
         View v = new View(this);
-        v.setBackgroundColor(COL_HAIRLINE);
+        v.setBackgroundColor(palette.appRule);
         return v;
     }
 
@@ -199,18 +204,18 @@ public class MainActivity extends Activity {
     private void buildUi() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(COL_BG);
+        root.setBackgroundColor(palette.appInk);
         root.setPadding(dp(64), dp(36), dp(64), dp(22));
 
         // 眉标：今日使用 …………………………… 日期 / 开机时长
         LinearLayout row1 = new LinearLayout(this);
         row1.setOrientation(LinearLayout.HORIZONTAL);
         row1.setGravity(Gravity.CENTER_VERTICAL);
-        eyebrow = label("今日使用", 10f, COL_SECOND, cjk, 0.18f);
+        eyebrow = label("今日使用", 10f, palette.appText2, cjk, 0.18f);
         row1.addView(eyebrow, lp(LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
         row1.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        metaLine = label("", 10f, COL_TERTIARY, cjk, 0.04f);
+        metaLine = label("", 10f, palette.appText3, cjk, 0.04f);
         metaLine.setGravity(Gravity.END);
         row1.addView(metaLine);
         root.addView(row1);
@@ -223,7 +228,7 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         row2Lp.topMargin = dp(6);
 
-        totalValue = label("00:00", 26f, COL_PRIMARY, num, 0.02f);
+        totalValue = label("00:00", 26f, palette.appText, num, 0.02f);
         row2.addView(totalValue);
 
         row2.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
@@ -243,7 +248,8 @@ public class MainActivity extends Activity {
         hair1.topMargin = dp(12);
         root.addView(hairline(), hair1);
 
-        timeline = new TimelineView(this, din);
+        timeline = new TapeView(this, palette, din);
+        timeline.setScale(TapeView.STANDARD);
         timeline.setPadding(0, dp(5), 0, 0);
         LinearLayout.LayoutParams tlLp = lp(LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -258,15 +264,15 @@ public class MainActivity extends Activity {
         listHeader.setOrientation(LinearLayout.HORIZONTAL);
         listHeader.setGravity(Gravity.CENTER_VERTICAL);
         listHeader.setPadding(dp(24), 0, dp(16), 0);
-        listHeader.addView(label("时间", 9f, COL_TERTIARY, cjk, 0.14f),
+        listHeader.addView(label("时间", 9f, palette.appText3, cjk, 0.14f),
                 lp(dp(220), LinearLayout.LayoutParams.WRAP_CONTENT));
-        TextView titleHead = label("看了什么", 9f, COL_TERTIARY, cjk, 0.14f);
+        TextView titleHead = label("看了什么", 9f, palette.appText3, cjk, 0.14f);
         listHeader.addView(titleHead, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        TextView durHead = label("时长", 9f, COL_TERTIARY, cjk, 0.14f);
+        TextView durHead = label("时长", 9f, palette.appText3, cjk, 0.14f);
         durHead.setGravity(Gravity.END);
         listHeader.addView(durHead, lp(dp(64), LinearLayout.LayoutParams.WRAP_CONTENT));
-        TextView catHead = label("类别", 9f, COL_TERTIARY, cjk, 0.14f);
+        TextView catHead = label("类别", 9f, palette.appText3, cjk, 0.14f);
         catHead.setGravity(Gravity.END);
         listHeader.addView(catHead, lp(dp(118), LinearLayout.LayoutParams.WRAP_CONTENT));
         LinearLayout.LayoutParams headLp = lp(LinearLayout.LayoutParams.MATCH_PARENT,
@@ -426,14 +432,14 @@ public class MainActivity extends Activity {
             View dot = new View(this);
             GradientDrawable oval = new GradientDrawable();
             oval.setShape(GradientDrawable.OVAL);
-            oval.setColor(Categories.color(i));
+            oval.setColor(palette.dataColor(i));
             dot.setBackground(oval);
             LinearLayout.LayoutParams dotLp = lp(dp(5), dp(5));
             dotLp.rightMargin = dp(7);
             chip.addView(dot, dotLp);
 
-            chip.addView(label(Categories.name(i), 9f, COL_SECOND, cjk, 0.02f));
-            TextView val = label(fmtClock(cats[i]), 9f, COL_PRIMARY, din, 0.02f);
+            chip.addView(label(Categories.name(i), 9f, palette.appText2, cjk, 0.02f));
+            TextView val = label(fmtClock(cats[i]), 9f, palette.appText, din, 0.02f);
             LinearLayout.LayoutParams valLp = lp(LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
             valLp.leftMargin = dp(6);
@@ -446,7 +452,7 @@ public class MainActivity extends Activity {
         }
         if (catRow.getChildCount() == 0) {
             boolean today = shownDay == UsageDay.dayStartOf(System.currentTimeMillis());
-            catRow.addView(label(today ? "今天还没有记录" : "这一天没有记录", 9f, COL_TERTIARY,
+            catRow.addView(label(today ? "今天还没有记录" : "这一天没有记录", 9f, palette.appText3,
                     cjk, 0.06f));
         }
     }
@@ -558,11 +564,11 @@ public class MainActivity extends Activity {
         if (rows.isEmpty()) {
             boolean today = shownDay == UsageDay.dayStartOf(System.currentTimeMillis());
             TextView empty = label(today ? "今天还没有记录到使用时间" : "这一天没有记录到使用时间",
-                    11f, COL_SECOND, cjk, 0.04f);
+                    11f, palette.appText2, cjk, 0.04f);
             empty.setPadding(0, dp(18), 0, 0);
             listContainer.addView(empty);
             TextView sub = label(today ? "屏保、熄屏的时间不计入" : "当天没有检测到「人在看」的时段",
-                    10f, COL_TERTIARY, cjk, 0.04f);
+                    10f, palette.appText3, cjk, 0.04f);
             sub.setPadding(0, dp(6), 0, 0);
             listContainer.addView(sub);
             return;
@@ -630,7 +636,7 @@ public class MainActivity extends Activity {
         row.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
-                v.setBackgroundColor(hasFocus ? COL_FOCUS : 0x00000000);
+                v.setBackgroundColor(hasFocus ? palette.appRowHover : 0x00000000);
             }
         });
         row.setLayoutParams(lp(LinearLayout.LayoutParams.MATCH_PARENT, dp(28)));
@@ -639,7 +645,7 @@ public class MainActivity extends Activity {
         // 行首色脊：类别颜色的唯一落点
         View spine = new View(this);
         GradientDrawable spineBg = new GradientDrawable();
-        spineBg.setColor(Categories.color(s.cat));
+        spineBg.setColor(palette.dataColor(s.cat));
         spineBg.setCornerRadius(dp(1.5f));
         spine.setBackground(spineBg);
         LinearLayout.LayoutParams spineLp = lp(dp(3), dp(14));
@@ -648,25 +654,25 @@ public class MainActivity extends Activity {
         row.addView(spine, spineLp);
 
         TextView range = label(timeFmt.format(new Date(s.start)) + " – "
-                + timeFmt.format(new Date(s.end)), 10f, COL_PRIMARY, din, 0.02f);
+                + timeFmt.format(new Date(s.end)), 10f, palette.appText, din, 0.02f);
         row.addView(range, lp(dp(220), LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        TextView title = label("", 10f, COL_PRIMARY, cjk, 0.02f);
+        TextView title = label("", 10f, palette.appText, cjk, 0.02f);
         if (s.title.isEmpty()) {
             if (s.cat == Categories.VIDEO) {
                 title.setText("未记录片名");
-                title.setTextColor(COL_TERTIARY);
+                title.setTextColor(palette.appText3);
             } else {
                 title.setText("");
             }
         } else {
             SpannableStringBuilder sb = new SpannableStringBuilder(s.title);
-            sb.setSpan(new ForegroundColorSpan(COL_PRIMARY), 0, sb.length(),
+            sb.setSpan(new ForegroundColorSpan(palette.appText), 0, sb.length(),
                     SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
             if (s.totalCi > 0) {
                 int a = sb.length();
                 sb.append(" 第").append(String.valueOf(s.ci)).append("集");
-                sb.setSpan(new ForegroundColorSpan(COL_SECOND), a, sb.length(),
+                sb.setSpan(new ForegroundColorSpan(palette.appText2), a, sb.length(),
                         SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
             title.setText(sb);
@@ -674,12 +680,12 @@ public class MainActivity extends Activity {
         row.addView(title, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView dur = label(fmtClock(s.dur), 9f, COL_SECOND, din,
+        TextView dur = label(fmtClock(s.dur), 9f, palette.appText2, din,
                 0.02f);
         dur.setGravity(Gravity.END);
         row.addView(dur, lp(dp(64), LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        TextView cat = label(Categories.name(s.cat), 10f, COL_SECOND, cjk, 0.04f);
+        TextView cat = label(Categories.name(s.cat), 10f, palette.appText2, cjk, 0.04f);
         cat.setGravity(Gravity.END);
         row.addView(cat, lp(dp(118), LinearLayout.LayoutParams.WRAP_CONTENT));
 

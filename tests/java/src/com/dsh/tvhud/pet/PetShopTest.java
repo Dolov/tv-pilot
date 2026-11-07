@@ -219,24 +219,70 @@ public final class PetShopTest {
             }
         });
 
-        runCase("场次：周末默认 +1 场、可关；家长临时加场", new Body() {
+        runCase("场次：周末可加 N 场（默认 5）、可关；家长临时加场", new Body() {
             @Override
             public void run() {
                 long wed = dayStart();
                 long sat = dayStart() + 3 * DAY; // 2023-11-18 周六
-                eq("工作日 3 场", 3, Budget.effectiveMaxSessions(3, true, wed));
-                eq("周六 4 场", 4, Budget.effectiveMaxSessions(3, true, sat));
-                eq("关掉周末加场", 3, Budget.effectiveMaxSessions(3, false, sat));
+                eq("工作日不加场", 3, Budget.effectiveMaxSessions(3, 5, wed));
+                eq("周六默认 +5", 8, Budget.effectiveMaxSessions(3, 5, sat));
+                eq("周末关掉加场", 3, Budget.effectiveMaxSessions(3, 0, sat));
+                eq("周末最多 +24", 27, Budget.effectiveMaxSessions(3, 24, sat));
+                eq("场次上限 24", 24, Budget.effectiveMaxSessions(99, 0, wed));
+                eq("周末加场夹到 24", 48, Budget.effectiveMaxSessions(24, 99, sat));
 
                 Budget b = new Budget();
                 b.dayStart = sat;
                 b.configuredMaxSessions = 3;
-                b.weekendBonus = true;
-                b.maxSessions = Budget.effectiveMaxSessions(3, true, sat);
-                eq("周末上限 4", 4, b.maxSessions);
+                b.weekendExtra = 5;
+                b.maxSessions = Budget.effectiveMaxSessions(3, 5, sat);
+                eq("周末上限 8", 8, b.maxSessions);
                 b.addSession();
-                eq("临时加一场后 5", 5, b.maxSessions);
+                eq("临时加一场后 9", 9, b.maxSessions);
                 eq("临时场次记录", 1, b.extraSessions);
+
+                // 临时加场可加可退：退的是「还没用掉」的那部分，配置本身不动
+                Budget add = new Budget();
+                add.dayStart = wed;
+                add.maxSessions = 3;
+                eq("初始没有临时场", 0, add.extraSessions);
+                check("加一场", add.addSession());
+                eq("加后上限 4", 4, add.maxSessions);
+                check("撤回一场", add.removeSession());
+                eq("撤回后上限 3", 3, add.maxSessions);
+                eq("撤回后临时场 0", 0, add.extraSessions);
+                check("0 场时不能再撤", !add.removeSession());
+
+                // 已经用掉的场次不能退：上限 = 已用时撤不动
+                Budget used = new Budget();
+                used.dayStart = wed;
+                used.extraSessions = 1;
+                used.maxSessions = 4;
+                used.sessionsUsed = 3;
+                check("还剩 1 场余量时可以退", used.removeSession());
+                eq("退后上限 = 已用 3", 3, used.maxSessions);
+                check("用满后退不动", !used.removeSession());
+
+                Budget full = new Budget();
+                full.extraSessions = 1;
+                full.maxSessions = 4;
+                full.sessionsUsed = 4;
+                check("已用满时撤不回", !full.removeSession());
+
+                // 当天临时加场有上限（24）
+                Budget cap = new Budget();
+                for (int i = 0; i < Budget.MAX_EXTRA_SESSIONS; i++) {
+                    check("加第 " + (i + 1) + " 场", cap.addSession());
+                }
+                eq("加满 24 场上限", 3 + Budget.MAX_EXTRA_SESSIONS, cap.maxSessions);
+                check("第 25 场被拒", !cap.addSession());
+
+                Budget roll = new Budget();
+                roll.dayStart = wed;
+                roll.extraSessions = 2;
+                roll.maxSessions = 5;
+                roll.rollDay(wed + DAY);
+                eq("跨天清掉临时场", 0, roll.extraSessions);
             }
         });
 

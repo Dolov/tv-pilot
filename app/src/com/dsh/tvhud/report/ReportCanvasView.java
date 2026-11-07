@@ -1,5 +1,7 @@
 package com.dsh.tvhud.report;
 
+import com.dsh.tvhud.ui.Contrast;
+import com.dsh.tvhud.ui.Palette;
 import com.dsh.tvhud.usage.Categories;
 import com.dsh.tvhud.usage.UsageDay;
 
@@ -10,7 +12,6 @@ import android.graphics.DashPathEffect;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
@@ -44,18 +45,29 @@ public abstract class ReportCanvasView extends View {
     protected static final float RIBBON_H = 52f;
     /** 页脚再往下压一点，尽量贴住屏幕底边（540 逻辑像素）。 */
     protected static final float FOOTER_TOP = 525f;
+    /** 报告大屏所有图例的统一字号（分类图例 / 热力色阶 / 环形图例共用）。 */
+    protected static final float LEGEND = 7.4f;
 
-    protected static final int C_BG = 0xff06090f;
-    protected static final int C_TEXT = 0xffe8f0f8;
-    protected static final int C_SUB = 0xff93a4b8;
-    protected static final int C_DIM = 0xff5c6b7d;
-    protected static final int C_CYAN = 0xff38bdf8;
-    protected static final int C_CYAN2 = 0xff22d3ee;
-    protected static final int C_LINE = 0x2469aacc;
-    protected static final int C_LINE_SOFT = 0x1469aacc;
-    protected static final int C_PANEL_TOP = 0xff131e2b;
-    protected static final int C_PANEL_BOT = 0xff090f17;
-    protected static final int C_TRACK = 0x1469aacc;
+    /** 主题色板：报告页全部颜色从这里派生；换 look 时整页一起换。 */
+    protected final Palette palette;
+    /** 表面 / 文字三级（与 Palette 的 report 角色对应）。 */
+    protected final int C_BG;
+    protected final int C_TEXT;
+    protected final int C_SUB;
+    protected final int C_DIM;
+    /** 无记录 / 出界用的更暗一级；由正文色压暗得到。 */
+    protected final int C_DIM2;
+    /** 唯一的灯：焦点 / 选中 / 现在 / 图表强调。 */
+    protected final int C_CYAN;
+    protected final int C_LINE;
+    protected final int C_LINE_SOFT;
+    protected final int C_PANEL_TOP;
+    protected final int C_PANEL_BOT;
+    protected final int C_TRACK;
+    /** 数据类别色：固定色相，不随主题变。 */
+    protected final int C_DATA_VIDEO;
+    protected final int C_DATA_MUSIC;
+    protected final int C_DANGER;
 
     protected final float density;
     protected Typeface din = Typeface.DEFAULT;
@@ -66,10 +78,6 @@ public abstract class ReportCanvasView extends View {
     private static boolean sTypefacesLoaded;
     private static Typeface sDin = Typeface.DEFAULT;
     private static Typeface sCjk = Typeface.DEFAULT;
-
-    /** 背景径向光晕的 Shader 只跟设计坐标有关，构造时建一次，不要每帧 new。 */
-    private final RadialGradient topGlow;
-    private final RadialGradient bottomGlow;
 
     /** 后台聚合失败时的提示；非 null 时画错误态，OK 键重试。 */
     private String loadError;
@@ -83,16 +91,27 @@ public abstract class ReportCanvasView extends View {
     protected final float[] stackTops = new float[5];
     protected final float[] stackBots = new float[5];
 
-    public ReportCanvasView(Context context) {
+    public ReportCanvasView(Context context, Palette palette) {
         super(context);
+        this.palette = palette;
         density = context.getResources().getDisplayMetrics().density;
+        C_BG = palette.reportInk;
+        C_TEXT = palette.reportText;
+        C_SUB = palette.reportText2;
+        C_DIM = palette.reportText3;
+        C_DIM2 = Contrast.alpha(palette.reportText, 0.24f);
+        C_CYAN = palette.lamp;
+        C_LINE = palette.reportRule;
+        C_LINE_SOFT = palette.reportTrack;
+        C_PANEL_TOP = palette.reportPanelTop;
+        C_PANEL_BOT = palette.reportPanelBot;
+        C_TRACK = palette.reportTrack;
+        C_DATA_VIDEO = palette.dataColor(Categories.VIDEO);
+        C_DATA_MUSIC = palette.dataColor(Categories.MUSIC);
+        C_DANGER = palette.danger;
         loadTypefaces(context);
         din = sDin;
         cjk = sCjk;
-        topGlow = new RadialGradient(SCREEN_W * 0.82f, -80f, 460f,
-                new int[]{0x2438bdf8, 0x0038bdf8}, null, Shader.TileMode.CLAMP);
-        bottomGlow = new RadialGradient(-60f, SCREEN_H + 60f, 420f,
-                new int[]{0x1cf43098, 0x00f43098}, null, Shader.TileMode.CLAMP);
         setBackgroundColor(C_BG);
         stroke.setStyle(Paint.Style.STROKE);
     }
@@ -203,14 +222,10 @@ public abstract class ReportCanvasView extends View {
         fill.setStyle(Paint.Style.FILL);
         fill.setColor(C_BG);
         c.drawRect(0, 0, SCREEN_W, SCREEN_H, fill);
-        fill.setShader(topGlow);
-        c.drawRect(0, 0, SCREEN_W, SCREEN_H, fill);
-        fill.setShader(bottomGlow);
-        c.drawRect(0, 0, SCREEN_W, SCREEN_H, fill);
         fill.setShader(null);
-        // 工程网格
+        // 工程网格：全 App 唯一发光体是带子的「现在」游标，这里只留极淡的参考线
         stroke.setShader(null);
-        stroke.setColor(0x0d69aacc);
+        stroke.setColor(Contrast.alpha(C_CYAN, 0.05f));
         stroke.setStrokeWidth(0.5f);
         for (float x = 0; x <= SCREEN_W; x += 32f) {
             c.drawLine(x, 0, x, SCREEN_H, stroke);
@@ -222,7 +237,7 @@ public abstract class ReportCanvasView extends View {
 
     private void drawLoading(Canvas c) {
         if (loadError != null) {
-            text(c, loadError, SCREEN_W / 2f, SCREEN_H / 2f - 8f, 11f, 0xffff9bb8, cjk,
+            text(c, loadError, SCREEN_W / 2f, SCREEN_H / 2f - 8f, 11f, C_DANGER, cjk,
                     Paint.Align.CENTER, 0f);
             text(c, "按 OK 重试，返回上一页", SCREEN_W / 2f, SCREEN_H / 2f + 14f, 8.5f,
                     C_DIM, cjk, Paint.Align.CENTER, 0.2f);
@@ -237,7 +252,7 @@ public abstract class ReportCanvasView extends View {
         // tv-pilot
         text(c, "tv-pilot", x, HEADER_TOP + 10f, 8f, C_CYAN, din, Paint.Align.LEFT, 2.2f);
         x += measure("tv-pilot", 8f, din, 2.2f) + 10f;
-        stroke.setColor(0x9969aacc);
+        stroke.setColor(Contrast.alpha(C_CYAN, 0.60f));
         stroke.setStrokeWidth(0.7f);
         c.drawLine(x, HEADER_TOP + 1f, x, HEADER_TOP + 15f, stroke);
         x += 10f;
@@ -249,10 +264,10 @@ public abstract class ReportCanvasView extends View {
         String range = ReportPeriod.range(r.coverageStartDay, r.viewEndDay);
         String status = r.current ? "进行中" : "已归档";
         float rangeW = measure(range, 8.5f, din, 0.4f) + measure(status, 7f, cjk, 0.6f) + 34f;
-        pill(c, x, HEADER_TOP + 1f, rangeW, 14f, 0x1469aacc, C_LINE, 7f);
-        text(c, range, x + 9f, HEADER_TOP + 11f, 8.5f, 0xffcfe0f0, din, Paint.Align.LEFT, 0.4f);
+        pill(c, x, HEADER_TOP + 1f, rangeW, 14f, C_TRACK, C_LINE, 7f);
+        text(c, range, x + 9f, HEADER_TOP + 11f, 8.5f, C_TEXT, din, Paint.Align.LEFT, 0.4f);
         text(c, status, x + rangeW - measure(status, 7f, cjk, 0.6f) - 9f,
-                HEADER_TOP + 10.6f, 7f, r.current ? 0xff7ee2c8 : 0xff8aa0b8, cjk,
+                HEADER_TOP + 10.6f, 7f, r.current ? C_DATA_MUSIC : C_SUB, cjk,
                 Paint.Align.LEFT, 0.6f);
 
         // 右侧：粒度 tabs / 步进器 / 回到本期
@@ -261,7 +276,7 @@ public abstract class ReportCanvasView extends View {
         if (!r.current) {
             backW = measure("回到本期", 7.5f, cjk, 0.5f) + 14f;
             float bx = right - backW;
-            pill(c, bx, HEADER_TOP + 1f, backW, 14f, 0x1138bdf8, 0x5538bdf8, 7f);
+            pill(c, bx, HEADER_TOP + 1f, backW, 14f, Contrast.alpha(C_CYAN, 0.067f), Contrast.alpha(C_CYAN, 0.33f), 7f);
             text(c, "回到本期", bx + 7f, HEADER_TOP + 10.6f, 7.5f, C_CYAN, cjk,
                     Paint.Align.LEFT, 0.5f);
             right -= backW + 8f;
@@ -270,10 +285,10 @@ public abstract class ReportCanvasView extends View {
         String stepLabel = periodLabel();
         float stepW = Math.max(74f, measure(stepLabel, 7.5f, cjk, 0.5f) + 32f);
         float sx = right - stepW;
-        pill(c, sx, HEADER_TOP + 1f, stepW, 14f, 0x0d69aacc, C_LINE_SOFT, 7f);
+        pill(c, sx, HEADER_TOP + 1f, stepW, 14f, Contrast.alpha(C_CYAN, 0.05f), C_LINE_SOFT, 7f);
         chevron(c, sx + 9f, HEADER_TOP + 8f, -1f);
         chevron(c, sx + stepW - 9f, HEADER_TOP + 8f, 1f);
-        text(c, stepLabel, sx + stepW / 2f, HEADER_TOP + 10.6f, 7.5f, 0xffd5e5f5, cjk,
+        text(c, stepLabel, sx + stepW / 2f, HEADER_TOP + 10.6f, 7.5f, C_TEXT, cjk,
                 Paint.Align.CENTER, 0.5f);
         right = sx - 8f;
 
@@ -285,10 +300,10 @@ public abstract class ReportCanvasView extends View {
             float tx = right - tabW;
             boolean on = values[i] == r.period;
             if (on) {
-                pill(c, tx, HEADER_TOP, tabW, 16f, 0x2a38bdf8, 0x8838bdf8, 8f);
+                pill(c, tx, HEADER_TOP, tabW, 16f, Contrast.alpha(C_CYAN, 0.16f), Contrast.alpha(C_CYAN, 0.53f), 8f);
             }
             text(c, tabs[i], tx + tabW / 2f, HEADER_TOP + 11f, 8f,
-                    on ? 0xffe8f6ff : C_DIM, cjk, Paint.Align.CENTER, 0.8f);
+                    on ? C_TEXT : C_DIM, cjk, Paint.Align.CENTER, 0.8f);
             right = tx - 4f;
         }
     }
@@ -301,7 +316,7 @@ public abstract class ReportCanvasView extends View {
     private void drawInsight(Canvas c) {
         float x = PAD;
         float tagW = 34f;
-        pill(c, x, INSIGHT_TOP, tagW, 13f, 0x1238bdf8, 0x5538bdf8, 6.5f);
+        pill(c, x, INSIGHT_TOP, tagW, 13f, Contrast.alpha(C_CYAN, 0.07f), Contrast.alpha(C_CYAN, 0.33f), 6.5f);
         text(c, "洞察", x + 7f, INSIGHT_TOP + 9.6f, 7f, C_CYAN, cjk, Paint.Align.LEFT, 1f);
         x += tagW + 8f;
         String s = r.insight == null ? "" : r.insight;
@@ -402,29 +417,29 @@ public abstract class ReportCanvasView extends View {
         float cx = x;
         for (int i = 0; i < 5; i++) {
             String name = Categories.name(i);
-            float itemW = measure(name, 6.2f, cjk, 0f) + 9f;
+            float itemW = measure(name, LEGEND, cjk, 0f) + 11f;
             if (cx + itemW > x + maxW) {
                 return cx;
             }
             fill.setShader(null);
-            fill.setColor(Categories.color(i));
-            rect.set(cx, y - 3.2f, cx + 3.2f, y);
-            c.drawRoundRect(rect, 0.8f, 0.8f, fill);
-            text(c, name, cx + 6.5f, y, 6.2f, C_SUB, cjk, Paint.Align.LEFT, 0f);
-            cx += itemW + 10f;
+            fill.setColor(palette.dataColor(i));
+            rect.set(cx, y - 3.8f, cx + 3.8f, y);
+            c.drawRoundRect(rect, 1f, 1f, fill);
+            text(c, name, cx + 7.5f, y, LEGEND, C_SUB, cjk, Paint.Align.LEFT, 0f);
+            cx += itemW + 12f;
         }
         return cx;
     }
 
     /** 热力色阶（周报 / 年报共用）。 */
     protected void drawHeatScale(Canvas c, float x, float y, float w) {
-        text(c, "少", x, y + 4f, 5.5f, C_DIM, cjk, Paint.Align.LEFT, 0f);
-        fill.setShader(new LinearGradient(x + 10f, 0, x + w - 14f, 0,
-                0x1438bdf8, 0xff38bdf8, Shader.TileMode.CLAMP));
-        rect.set(x + 10f, y - 1f, x + w - 14f, y + 3f);
+        text(c, "少", x, y + 4f, LEGEND, C_DIM, cjk, Paint.Align.LEFT, 0f);
+        fill.setShader(new LinearGradient(x + 12f, 0, x + w - 16f, 0,
+                Contrast.alpha(C_CYAN, 0.08f), C_CYAN, Shader.TileMode.CLAMP));
+        rect.set(x + 12f, y - 1f, x + w - 16f, y + 3f);
         c.drawRoundRect(rect, 1f, 1f, fill);
         fill.setShader(null);
-        text(c, "多", x + w - 10f, y + 4f, 5.5f, C_DIM, cjk, Paint.Align.LEFT, 0f);
+        text(c, "多", x + w, y + 4f, LEGEND, C_DIM, cjk, Paint.Align.RIGHT, 0f);
     }
 
     private void drawKpiCard(Canvas c, float x, float y, float w, float h, Kpi k) {
@@ -455,10 +470,10 @@ public abstract class ReportCanvasView extends View {
         float noteX = x + 10f;
         if (k.delta != null && k.delta.length() > 0) {
             float dw = measure(k.delta, 7f, din, 0.3f) + 12f;
-            pill(c, noteX, fy - 8f, dw, 11f, k.up ? 0x1838bdf8 : 0x18f43098,
-                    k.up ? 0x5538bdf8 : 0x55f43098, 5.5f);
+            pill(c, noteX, fy - 8f, dw, 11f, k.up ? Contrast.alpha(C_CYAN, 0.094f) : Contrast.alpha(C_DATA_VIDEO, 0.094f),
+                    k.up ? Contrast.alpha(C_CYAN, 0.33f) : Contrast.alpha(C_DATA_VIDEO, 0.33f), 5.5f);
             text(c, (k.up ? "▲ " : "▼ ") + k.delta, noteX + 5f, fy - 0.4f, 7f,
-                    k.up ? C_CYAN : 0xffff9bb8, din, Paint.Align.LEFT, 0.3f);
+                    k.up ? C_CYAN : C_DANGER, din, Paint.Align.LEFT, 0.3f);
             noteX += dw + 6f;
         }
         if (k.foot != null && k.foot.length() > 0) {
@@ -474,7 +489,7 @@ public abstract class ReportCanvasView extends View {
             rect.set(x + 10f, py, x + w - 10f, py + 2.5f);
             c.drawRoundRect(rect, 1.2f, 1.2f, fill);
             fill.setShader(new LinearGradient(x + 10f, 0, x + w - 10f, 0,
-                    0x8838bdf8, C_CYAN, Shader.TileMode.CLAMP));
+                    Contrast.alpha(C_CYAN, 0.53f), C_CYAN, Shader.TileMode.CLAMP));
             rect.set(x + 10f, py, x + 10f + (w - 20f) * k.progress, py + 2.5f);
             c.drawRoundRect(rect, 1.2f, 1.2f, fill);
             fill.setShader(null);
@@ -496,7 +511,7 @@ public abstract class ReportCanvasView extends View {
         float x = PAD;
         float y = RIBBON_TOP;
         card(c, x, y, CONTENT_W, RIBBON_H);
-        text(c, "PERIOD", x + 10f, y + 10.5f, 6f, 0xaa38bdf8, din, Paint.Align.LEFT, 1.6f);
+        text(c, "PERIOD", x + 10f, y + 10.5f, 6f, Contrast.alpha(C_CYAN, 0.67f), din, Paint.Align.LEFT, 1.6f);
         int count = list.size();
         String name = r.period == ReportPeriod.WEEK ? "近 " + count + " 周"
                 : r.period == ReportPeriod.MONTH ? "近 " + count + " 个月"
@@ -516,7 +531,7 @@ public abstract class ReportCanvasView extends View {
         // 柱子的基线；日期/周期文字统一画在基线下面，不再压进选中的柱子里
         float baseY = y + 38f;
         stroke.setShader(null);
-        stroke.setColor(0x2469aacc);
+        stroke.setColor(C_LINE);
         stroke.setStrokeWidth(0.5f);
         c.drawLine(areaX, baseY, areaX + areaW, baseY, stroke);
         for (int i = 0; i < count; i++) {
@@ -528,25 +543,25 @@ public abstract class ReportCanvasView extends View {
             boolean sel = st.selected;
             fill.setShader(null);
             if (st.outOfRange) {
-                fill.setColor(0x1469aacc);
+                fill.setColor(C_TRACK);
             } else if (sel) {
                 fill.setShader(new LinearGradient(cx, baseY - bh, cx, baseY,
-                        0xff7dd8ff, 0x4038bdf8, Shader.TileMode.CLAMP));
+                        C_CYAN, Contrast.alpha(C_CYAN, 0.25f), Shader.TileMode.CLAMP));
             } else {
-                fill.setColor(0x88607380);
+                fill.setColor(Contrast.alpha(C_DIM, 0.53f));
             }
             rect.set(cx - bw / 2f, baseY - bh, cx + bw / 2f, baseY);
             c.drawRoundRect(rect, 1.5f, 1.5f, fill);
             fill.setShader(null);
             if (sel) {
-                stroke.setColor(0x6638bdf8);
+                stroke.setColor(Contrast.alpha(C_CYAN, 0.40f));
                 stroke.setStrokeWidth(0.8f);
                 rect.set(cx - bw / 2f - 3f, baseY - bh - 3f, cx + bw / 2f + 3f, baseY);
                 c.drawRoundRect(rect, 2f, 2f, stroke);
             }
             // 文字基线在基线下方 9 逻辑像素：选中柱再高也不会盖住日期，又不至于离柱子太远
             text(c, st.label, cx, y + 47f, 6.5f,
-                    sel ? 0xffe8f6ff : (st.outOfRange ? 0xff3a4654 : C_DIM), din,
+                    sel ? C_TEXT : (st.outOfRange ? C_DIM2 : C_DIM), din,
                     Paint.Align.CENTER, 0.2f);
             if (st.current) {
                 fill.setColor(C_CYAN);
@@ -579,11 +594,11 @@ public abstract class ReportCanvasView extends View {
         stroke.setStrokeWidth(0.5f);
         c.drawRoundRect(rect, 6f, 6f, stroke);
         // 顶部高光
-        stroke.setColor(0xaa38bdf8);
+        stroke.setColor(Contrast.alpha(C_CYAN, 0.67f));
         stroke.setStrokeWidth(1.2f);
         c.drawLine(x + 10f, y, x + 48f, y, stroke);
         // 右下切角
-        stroke.setColor(0x3369aacc);
+        stroke.setColor(Contrast.alpha(C_CYAN, 0.20f));
         stroke.setStrokeWidth(0.6f);
         c.drawLine(x + w - 9f, y + h - 2f, x + w - 2f, y + h - 2f, stroke);
         c.drawLine(x + w - 2f, y + h - 9f, x + w - 2f, y + h - 2f, stroke);
@@ -602,8 +617,8 @@ public abstract class ReportCanvasView extends View {
     }
 
     protected void topList(Canvas c, float x, float y, float w, float h) {
-        text(c, "看了什么", x + 10f, y + 15f, 9f, 0xffd5e5f5, cjk, Paint.Align.LEFT, 0.5f);
-        text(c, "TOP CONTENT", x + 68f, y + 14f, 5.5f, 0xaa38bdf8, din, Paint.Align.LEFT, 1.2f);
+        text(c, "看了什么", x + 10f, y + 15f, 9f, C_TEXT, cjk, Paint.Align.LEFT, 0.5f);
+        text(c, "TOP CONTENT", x + 68f, y + 14f, 5.5f, Contrast.alpha(C_CYAN, 0.67f), din, Paint.Align.LEFT, 1.2f);
         text(c, "按集数", x + w - 10f, y + 14.5f, 7f, C_DIM, cjk, Paint.Align.RIGHT, 0.2f);
         List<Report.TopPlay> tops = r.topPlays;
         float top = y + 24f;
@@ -611,7 +626,7 @@ public abstract class ReportCanvasView extends View {
         if (tops == null || tops.isEmpty()) {
             text(c, "本期没有可用的播放记录", x + 10f, top + 16f, 7.5f, C_DIM, cjk,
                     Paint.Align.LEFT, 0.2f);
-            text(c, "播放日志会轮转，只看得到抓到的部分", x + 10f, top + 28f, 6.5f, 0x44697a8c,
+            text(c, "播放日志会轮转，只看得到抓到的部分", x + 10f, top + 28f, 6.5f, Contrast.alpha(C_DIM, 0.27f),
                     cjk, Paint.Align.LEFT, 0.2f);
             return;
         }
@@ -623,24 +638,24 @@ public abstract class ReportCanvasView extends View {
             Report.TopPlay t = tops.get(i);
             float ry = top + rowH * i;
             text(c, i < 9 ? "0" + (i + 1) : String.valueOf(i + 1), x + 10f, ry + rowH * 0.62f,
-                    8.5f, 0x8838bdf8, din, Paint.Align.LEFT, 0.3f);
+                    8.5f, Contrast.alpha(C_CYAN, 0.53f), din, Paint.Align.LEFT, 0.3f);
             text(c, fit(t.name, w - 120f, 8.5f, cjk), x + 28f, ry + rowH * 0.62f,
-                    8.5f, 0xffdbe8f4, cjk, Paint.Align.LEFT, 0.1f);
+                    8.5f, C_TEXT, cjk, Paint.Align.LEFT, 0.1f);
             String ep = t.episodes + " 集";
             float epW = measure(ep, 6.5f, din, 0.2f) + 8f;
             float epX = x + w - epW - 58f;
-            pill(c, epX, ry + rowH * 0.30f, epW, 9f, 0x1238bdf8, 0x4438bdf8, 2.5f);
+            pill(c, epX, ry + rowH * 0.30f, epW, 9f, Contrast.alpha(C_CYAN, 0.07f), Contrast.alpha(C_CYAN, 0.27f), 2.5f);
             text(c, ep, epX + 4f, ry + rowH * 0.30f + 6.6f, 6.5f, C_CYAN, din,
                     Paint.Align.LEFT, 0.2f);
             text(c, "最近 " + lastLabel(t.lastMs), x + w - 10f, ry + rowH * 0.62f,
                     6.5f, C_DIM, din, Paint.Align.RIGHT, 0.2f);
             // 比例条
             fill.setShader(null);
-            fill.setColor(0x1069aacc);
+            fill.setColor(Contrast.alpha(C_CYAN, 0.063f));
             rect.set(x + 28f, ry + rowH - 3.5f, x + w - 10f, ry + rowH - 1f);
             c.drawRoundRect(rect, 1f, 1f, fill);
             fill.setShader(new LinearGradient(x + 28f, 0, x + w - 10f, 0,
-                    0x66f43098, 0xfff43098, Shader.TileMode.CLAMP));
+                    Contrast.alpha(C_DATA_VIDEO, 0.40f), C_DATA_VIDEO, Shader.TileMode.CLAMP));
             rect.set(x + 28f, ry + rowH - 3.5f,
                     x + 28f + (w - 38f) * t.episodes / maxEpisodes, ry + rowH - 1f);
             c.drawRoundRect(rect, 1f, 1f, fill);
@@ -679,7 +694,7 @@ public abstract class ReportCanvasView extends View {
                 double v = (double) matrix[i][j] / max;
                 int alpha = v <= 0 ? 8 : (int) Math.min(242, 26 + 216 * Math.pow(v, 0.55));
                 fill.setShader(null);
-                fill.setColor(Color.argb(alpha, 56, 189, 248));
+                fill.setColor(Contrast.alpha(C_CYAN, alpha / 255f));
                 rect.set(gridX + j * (cw + gap), cy, gridX + j * (cw + gap) + cw, cy + cellH);
                 c.drawRoundRect(rect, 1f, 1f, fill);
             }
@@ -703,7 +718,7 @@ public abstract class ReportCanvasView extends View {
         stroke.setShader(null);
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeWidth(thickness);
-        stroke.setColor(0x1469aacc);
+        stroke.setColor(C_TRACK);
         c.drawCircle(cx, cy, radius, stroke);
         if (total <= 0) {
             return;
@@ -715,7 +730,7 @@ public abstract class ReportCanvasView extends View {
             }
             float sweep = cats[i] * 360f / total;
             float gap = Math.min(2.5f, sweep * 0.1f);
-            stroke.setColor(Categories.color(i));
+            stroke.setColor(palette.dataColor(i));
             c.drawArc(cx - radius, cy - radius, cx + radius, cy + radius,
                     start + gap / 2f, Math.max(0.4f, sweep - gap), false, stroke);
             start += sweep;
@@ -774,7 +789,7 @@ public abstract class ReportCanvasView extends View {
     private void numberText(Canvas c, String s, float x, float baseline, float size,
                             Paint.Align align) {
         textPaint.setShader(new LinearGradient(x, baseline - size, x, baseline,
-                0xffffffff, 0xff9ec9e8, Shader.TileMode.CLAMP));
+                C_TEXT, C_SUB, Shader.TileMode.CLAMP));
         textPaint.setTypeface(cjk);
         textPaint.setTextSize(size);
         textPaint.setColor(C_TEXT);
@@ -789,7 +804,7 @@ public abstract class ReportCanvasView extends View {
             return;
         }
         textPaint.setShader(new LinearGradient(x, baseline - size, x, baseline,
-                0xffffffff, 0xff86cdf5, Shader.TileMode.CLAMP));
+                C_TEXT, C_CYAN, Shader.TileMode.CLAMP));
         textPaint.setTypeface(din);
         textPaint.setTextSize(size);
         textPaint.setColor(C_TEXT);

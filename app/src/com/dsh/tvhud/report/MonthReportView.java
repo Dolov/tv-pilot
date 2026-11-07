@@ -1,5 +1,7 @@
 package com.dsh.tvhud.report;
 
+import com.dsh.tvhud.ui.Contrast;
+import com.dsh.tvhud.ui.Palette;
 import com.dsh.tvhud.usage.Categories;
 import com.dsh.tvhud.usage.UsageDay;
 
@@ -23,8 +25,8 @@ public final class MonthReportView extends ReportCanvasView {
     /** KPI 只在 setReport 时算一次。 */
     private Kpi[] cachedKpis;
 
-    public MonthReportView(Context context) {
-        super(context);
+    public MonthReportView(Context context, Palette palette) {
+        super(context, palette);
         chartStroke.setStyle(Paint.Style.STROKE);
     }
 
@@ -71,9 +73,9 @@ public final class MonthReportView extends ReportCanvasView {
 
         // 日历
         card(c, PAD, ROW1_TOP, calW, ROW1_H);
-        text(c, "日历热力", PAD + 10f, ROW1_TOP + 15f, 9.5f, 0xffd5e5f5, cjk,
+        text(c, "日历热力", PAD + 10f, ROW1_TOP + 15f, 9.5f, C_TEXT, cjk,
                 Paint.Align.LEFT, 0.6f);
-        text(c, "CALENDAR", PAD + 66f, ROW1_TOP + 14f, 5.5f, 0xaa38bdf8, din,
+        text(c, "CALENDAR", PAD + 66f, ROW1_TOP + 14f, 5.5f, Contrast.alpha(C_CYAN, 0.67f), din,
                 Paint.Align.LEFT, 1.2f);
         text(c, "颜色越亮，当天看得越久", PAD + calW - 10f, ROW1_TOP + 14.5f, 6.5f, C_DIM,
                 cjk, Paint.Align.RIGHT, 0.2f);
@@ -81,9 +83,9 @@ public final class MonthReportView extends ReportCanvasView {
 
         // 环形
         card(c, donutX, ROW1_TOP, donutW, ROW1_H);
-        text(c, "内容构成", donutX + 10f, ROW1_TOP + 15f, 9.5f, 0xffd5e5f5, cjk,
+        text(c, "内容构成", donutX + 10f, ROW1_TOP + 15f, 9.5f, C_TEXT, cjk,
                 Paint.Align.LEFT, 0.6f);
-        text(c, "MIX", donutX + 66f, ROW1_TOP + 14f, 5.5f, 0xaa38bdf8, din,
+        text(c, "MIX", donutX + 66f, ROW1_TOP + 14f, 5.5f, Contrast.alpha(C_CYAN, 0.67f), din,
                 Paint.Align.LEFT, 1.2f);
         text(c, "按观看时长", donutX + donutW - 10f, ROW1_TOP + 14.5f, 6.5f, C_DIM, cjk,
                 Paint.Align.RIGHT, 0.2f);
@@ -98,18 +100,18 @@ public final class MonthReportView extends ReportCanvasView {
         float topX = weekX + weekW + 6f;
 
         card(c, dailyX, ROW2_TOP, dailyW, ROW2_H);
-        text(c, "每日趋势", dailyX + 10f, ROW2_TOP + 15f, 9.5f, 0xffd5e5f5, cjk,
+        text(c, "每日趋势", dailyX + 10f, ROW2_TOP + 15f, 9.5f, C_TEXT, cjk,
                 Paint.Align.LEFT, 0.6f);
-        text(c, "DAILY TREND", dailyX + 66f, ROW2_TOP + 14f, 5.5f, 0xaa38bdf8, din,
+        text(c, "DAILY TREND", dailyX + 66f, ROW2_TOP + 14f, 5.5f, Contrast.alpha(C_CYAN, 0.67f), din,
                 Paint.Align.LEFT, 1.2f);
         text(c, "虚线 = 日均 " + ReportMath.hhmm(r.avgMs()), dailyX + dailyW - 10f,
                 ROW2_TOP + 14.5f, 6.2f, C_DIM, cjk, Paint.Align.RIGHT, 0.2f);
         drawDaily(c, dailyX + 8f, ROW2_TOP + 24f, dailyW - 16f, ROW2_H - 32f);
 
         card(c, weekX, ROW2_TOP, weekW, ROW2_H);
-        text(c, "周内平均", weekX + 10f, ROW2_TOP + 15f, 9.5f, 0xffd5e5f5, cjk,
+        text(c, "周内平均", weekX + 10f, ROW2_TOP + 15f, 9.5f, C_TEXT, cjk,
                 Paint.Align.LEFT, 0.6f);
-        text(c, "BY WEEKDAY", weekX + 10f, ROW2_TOP + 24f, 5.2f, 0xaa38bdf8, din,
+        text(c, "BY WEEKDAY", weekX + 10f, ROW2_TOP + 24f, 5.2f, Contrast.alpha(C_CYAN, 0.67f), din,
                 Paint.Align.LEFT, 1.1f);
         drawWeekdayAvg(c, weekX + 8f, ROW2_TOP + 30f, weekW - 16f, ROW2_H - 38f);
 
@@ -154,21 +156,21 @@ public final class MonthReportView extends ReportCanvasView {
                     : d.totalMs <= 0 ? 8
                     : (int) Math.min(150, 14 + 136 * Math.pow(v, 0.55));
             fill.setShader(null);
-            fill.setColor(android.graphics.Color.argb(alpha, 56, 189, 248));
+            fill.setColor(Contrast.alpha(C_CYAN, alpha / 255f));
             chartRect.set(cx, cy, cx + cellW, cy + cellH);
             c.drawRoundRect(chartRect, 2.2f, 2.2f, fill);
             if (i == maxIdx && d != null && d.totalMs > 0) {
                 chartStroke.setShader(null);
-                chartStroke.setColor(0xcc38bdf8);
+                chartStroke.setColor(Contrast.alpha(C_CYAN, 0.80f));
                 chartStroke.setStrokeWidth(0.7f);
                 c.drawRoundRect(chartRect, 2.2f, 2.2f, chartStroke);
             }
             text(c, String.valueOf(i + 1), cx + 4f, cy + 8.2f, 5.8f,
-                    d != null && d.totalMs > 0 ? 0xffcfe0f0 : 0xff3a4654, din,
+                    d != null && d.totalMs > 0 ? C_TEXT : C_DIM2, din,
                     Paint.Align.LEFT, 0f);
             if (d != null && d.totalMs > 0 && cellW > 34f) {
                 text(c, ReportMath.hhmm(d.totalMs), cx + cellW - 4f, cy + cellH - 3.2f, 5.2f,
-                        0xffdbe8f4, din, Paint.Align.RIGHT, 0f);
+                        C_TEXT, din, Paint.Align.RIGHT, 0f);
             }
         }
         text(c, "周一起 · 空格 = 未到 / 无记录", x, y + h, 5.2f, C_DIM, cjk,
@@ -181,32 +183,37 @@ public final class MonthReportView extends ReportCanvasView {
     }
 
     private void drawDonut(Canvas c, float x, float y, float w, float h) {
-        float cx = x + 64f;
-        float cy = y + h / 2f;
-        donut(c, cx, cy, 40f, 9f);
+        // 内容区（去掉标题行）的垂直中心：圆环和图例都按这条线居中
+        float cy = y + (h + 20f) / 2f;
+        float radius = 52f;
+        float ring = 12f;
+        float outer = radius + ring / 2f;
+        float cx = x + 12f + outer;              // 左边距 12dp
+        donut(c, cx, cy, radius, ring);
         // 中心
-        text(c, ReportMath.hhmm(r.totalMs), cx, cy - 1f, 13f, C_TEXT, din,
+        text(c, ReportMath.hhmm(r.totalMs), cx, cy - 1f, 15f, C_TEXT, din,
                 Paint.Align.CENTER, 0.2f);
-        text(c, "本期合计", cx, cy + 10f, 5.5f, C_DIM, cjk, Paint.Align.CENTER, 0.4f);
-        // 图例
+        text(c, "本期合计", cx, cy + 11f, 6f, C_DIM, cjk, Paint.Align.CENTER, 0.4f);
+        // 图例：和圆环拉开 24dp，五行整体垂直居中
         long[] cats = r.catMs;
         int[] pct = ReportMath.percentages(cats);
-        float lx = x + 118f;
-        float ly = y + 40f;
+        float lx = cx + outer + 24f;
+        float rowH = 20f;
+        float firstBaseline = cy - rowH * 2f + 2f;
         for (int i = 0; i < 5; i++) {
-            float ry = ly + i * 17f;
+            float ry = firstBaseline + i * rowH;
             fill.setShader(null);
-            fill.setColor(Categories.color(i));
-            c.drawCircle(lx + 2f, ry - 2f, 1.5f, fill);
+            fill.setColor(palette.dataColor(i));
+            c.drawCircle(lx + 2f, ry - 2f, 1.6f, fill);
             String name = Categories.name(i);
             if (cats[i] <= 0) {
-                text(c, name, lx + 7f, ry, 6.2f, C_DIM, cjk, Paint.Align.LEFT, 0f);
+                text(c, name, lx + 8f, ry, LEGEND, C_DIM, cjk, Paint.Align.LEFT, 0f);
                 continue;
             }
-            text(c, name, lx + 7f, ry, 6.2f, C_SUB, cjk, Paint.Align.LEFT, 0f);
-            text(c, ReportMath.hhmm(cats[i]), x + w - 28f, ry, 6.2f, C_TEXT, din,
+            text(c, name, lx + 8f, ry, LEGEND, C_SUB, cjk, Paint.Align.LEFT, 0f);
+            text(c, ReportMath.hhmm(cats[i]), x + w - 30f, ry, LEGEND, C_TEXT, din,
                     Paint.Align.RIGHT, 0f);
-            text(c, pct[i] + "%", x + w - 10f, ry, 5.8f, C_DIM, din,
+            text(c, pct[i] + "%", x + w - 10f, ry, LEGEND, C_DIM, din,
                     Paint.Align.RIGHT, 0f);
         }
     }
@@ -234,7 +241,7 @@ public final class MonthReportView extends ReportCanvasView {
             long dayStart = r.startDay + i * UsageDay.DAY_MS;
             if (ReportMath.mondayIndex(dayStart) >= 5) {
                 fill.setShader(null);
-                fill.setColor(0x0d38bdf8);
+                fill.setColor(Contrast.alpha(C_CYAN, 0.05f));
                 c.drawRect(plotX + slot * i, plotTop, plotX + slot * (i + 1), bottom, fill);
             }
         }
@@ -245,7 +252,7 @@ public final class MonthReportView extends ReportCanvasView {
         chartText.setTextAlign(Paint.Align.RIGHT);
         for (float v = 0; v <= yMax; v += step) {
             float gy = bottom - v / yMax * plotH;
-            chartStroke.setColor(v == 0 ? 0x3869aacc : 0x1269aacc);
+            chartStroke.setColor(v == 0 ? Contrast.alpha(C_CYAN, 0.22f) : Contrast.alpha(C_CYAN, 0.07f));
             c.drawLine(plotX, gy, x + w, gy, chartStroke);
             chartText.setColor(C_DIM);
             c.drawText(axisLabel(v), x + labelW - 4f, gy + 2f, chartText);
@@ -262,26 +269,26 @@ public final class MonthReportView extends ReportCanvasView {
                         continue;
                     }
                     chartFill.setShader(new LinearGradient(0, stackTops[ci], 0, stackBots[ci],
-                            Categories.color(ci),
-                            (Categories.color(ci) & 0x00ffffff) | 0x55000000,
+                            palette.dataColor(ci),
+                            Contrast.alpha(palette.dataColor(ci), 0.33f),
                             Shader.TileMode.CLAMP));
                     chartRect.set(bx, stackTops[ci] + 0.4f, bx + bw, stackBots[ci] - 0.4f);
                     c.drawRoundRect(chartRect, 1f, 1f, chartFill);
                     chartFill.setShader(null);
                 }
             } else if (d == null) {
-                chartStroke.setColor(0x1a69aacc);
+                chartStroke.setColor(Contrast.alpha(C_CYAN, 0.10f));
                 chartStroke.setStrokeWidth(0.5f);
                 c.drawLine(bx, bottom, bx + bw, bottom, chartStroke);
             }
             if (i % 5 == 0 || i == totalDays - 1) {
                 text(c, String.valueOf(i + 1), plotX + slot * i + slot / 2f, bottom + 7f,
-                        5.6f, d == null ? 0xff3a4654 : C_DIM, din, Paint.Align.CENTER, 0f);
+                        5.6f, d == null ? C_DIM2 : C_DIM, din, Paint.Align.CENTER, 0f);
             }
         }
         if (r.totalMs > 0) {
             float ay = bottom - (r.avgMs() / 60000f) / yMax * plotH;
-            chartStroke.setColor(0xaa38bdf8);
+            chartStroke.setColor(Contrast.alpha(C_CYAN, 0.67f));
             chartStroke.setStrokeWidth(0.8f);
             chartStroke.setPathEffect(new android.graphics.DashPathEffect(new float[]{1.5f, 3f}, 0f));
             c.drawLine(plotX, ay, x + w, ay, chartStroke);
@@ -305,16 +312,16 @@ public final class MonthReportView extends ReportCanvasView {
             float bh = plotH * vals[i] / max;
             if (vals[i] > 0) {
                 fill.setShader(new LinearGradient(0, bottom - bh, 0, bottom,
-                        0xff9be6ff, 0xaa2f9fd8, Shader.TileMode.CLAMP));
+                        C_CYAN, Contrast.alpha(C_CYAN, 0.67f), Shader.TileMode.CLAMP));
                 chartRect.set(cx - bw / 2f, bottom - bh, cx + bw / 2f, bottom);
                 c.drawRoundRect(chartRect, 1.5f, 1.5f, fill);
                 fill.setShader(null);
-                text(c, ReportMath.hhmm(vals[i]), cx, bottom - bh - 3f, 5.4f, 0xffcfe0f0,
+                text(c, ReportMath.hhmm(vals[i]), cx, bottom - bh - 3f, 5.4f, C_TEXT,
                         din, Paint.Align.CENTER, 0f);
             } else {
                 chartRect.set(cx - bw / 2f, bottom - 1.5f, cx + bw / 2f, bottom);
                 fill.setShader(null);
-                fill.setColor(0x2269aacc);
+                fill.setColor(Contrast.alpha(C_CYAN, 0.13f));
                 c.drawRoundRect(chartRect, 1f, 1f, fill);
             }
             text(c, ReportMath.WEEK_CN[i], cx, bottom + 8f, 5.8f, C_SUB, cjk,

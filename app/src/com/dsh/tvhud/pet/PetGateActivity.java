@@ -21,12 +21,14 @@ import java.util.Locale;
 
 /**
  * 到点拦截页：宠物出来说「该休息啦」，孩子只有两个出口——
- * 休息，或答 3 题对 2 题再玩 5 分钟。60 秒不选默认休息。
+ * 休息，或答 3 题对 2 题再玩一次续时（分钟数家长可配，默认 5 分钟）。60 秒不选默认休息。
  *
- * 两种闸门：
+ * 三种闸门：
  * - GATE_NORMAL：这一场看满了。两个大按钮，答题是减速带不是收费站；
  * - GATE_WINDOW：现在不在家长允许的时段。只有「好，去休息」一个按钮，
- *   不走答题、不计场次、不给星星（PetEngine.onQuietRest），60 秒后自动休息。
+ *   不走答题、不计场次、不给星星（PetEngine.onQuietRest），60 秒后自动休息；
+ * - GATE_INTERVAL：上一场刚结束，还在两场之间的休息间隔里。这页不给按钮、
+ *   不答题、不计场次也不给星星，只每秒刷新剩余时间，间隔走完自动放行并退出。
  *
  * 6 岁体验：题干 34dp、选项 26dp 大卡片；默认焦点在中间；题目和选项都读出来；
  * 答错先给一次机会，第二次才揭晓答案；60 秒无操作只重复读题，不判错、不倒计时；
@@ -91,6 +93,8 @@ public final class PetGateActivity extends Activity {
     private boolean suppressFocusSpeech;
     /** 时段外被拦下：只给「好，去休息」。 */
     private boolean windowGate;
+    /** 两场之间的休息间隔：只显示倒计时，到点自动放行。 */
+    private boolean intervalGate;
     private int secondsLeft = SECONDS;
     private long backDownAt;
     private boolean destroyed;
@@ -138,6 +142,34 @@ public final class PetGateActivity extends Activity {
             handler.postDelayed(this, 1000L);
         }
     };
+    /**
+     * 休息间隔闸门：不走 60 秒倒计时，只按秒刷新剩余时间。
+     * 到点自己收掉闸门并退出，孩子不用、也不能按任何键——不计场次、不给星星。
+     */
+    private final Runnable intervalTick = new Runnable() {
+        @Override
+        public void run() {
+            if (finishedChoice) {
+                return;
+            }
+            if (!sVisible) {
+                // 被设置页/桌面挡住时暂停刷新，回到页面再接着算
+                handler.postDelayed(this, 500L);
+                return;
+            }
+            // 家长在设置页发了「今天免限」：这页拦得就没意义了，直接放孩子回去
+            if (PetStore.hasFreePass(PetGateActivity.this)) {
+                releaseForFreePass();
+                return;
+            }
+            if (System.currentTimeMillis() >= budget.restUntil) {
+                releaseAfterRest();
+                return;
+            }
+            updateCountdown();
+            handler.postDelayed(this, 1000L);
+        }
+    };
     /** 60 秒没操作：只重复读题，不判错、不自动进屋。 */
     private final Runnable idleRepeat = new Runnable() {
         @Override
@@ -166,6 +198,7 @@ public final class PetGateActivity extends Activity {
         PetEngine.settle(state, System.currentTimeMillis());
         quizBank = PetStore.loadQuiz(this);
         windowGate = budget.gateReason == Budget.GATE_WINDOW;
+        intervalGate = budget.gateReason == Budget.GATE_INTERVAL;
         buildUi();
         applyMode();
         updateCountdown();
@@ -180,6 +213,14 @@ public final class PetGateActivity extends Activity {
         sVisible = true;
         sSettingsOpen = false;
         if (finishedChoice) {
+            return;
+        }
+        if (intervalGate) {
+            // 间隔闸门没有可操作的内容：只等休息时间走完，不能按 60 秒倒计时休息
+            handler.removeCallbacks(tick);
+            handler.removeCallbacks(idleRepeat);
+            handler.removeCallbacks(intervalTick);
+            handler.postDelayed(intervalTick, 1000L);
             return;
         }
         if (quizMode) {
@@ -310,7 +351,7 @@ public final class PetGateActivity extends Activity {
         });
         choiceRow.addView(restButton);
 
-        quizButton = choiceButton("答题再玩 5 分钟");
+        quizButton = choiceButton("答题再玩 " + Budget.formatMinutes(PetStore.extensionMinutes(this)));
         quizButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -464,10 +505,39 @@ public final class PetGateActivity extends Activity {
     }
 
     private void updateCountdown() {
+        if (intervalGate) {
+            // 休息间隔：显示「还剩多久」而不是「几秒后自动休息」
+            countdownText.setText("休息还剩 " + restLeftText());
+            return;
+        }
         countdownText.setText(String.format(Locale.CHINA, "%d 秒后自动休息", secondsLeft));
     }
 
+    /** 休息间隔剩余时间的短写法：12 分 30 秒 / 45 秒。 */
+    private String restLeftText() {
+        long leftMs = Math.max(0L, budget.restUntil - System.currentTimeMillis());
+        long sec = (leftMs + 999L) / 1000L;
+        if (sec >= 60L) {
+            return (sec / 60L) + " 分 " + (sec % 60L) + " 秒";
+        }
+        return sec + " 秒";
+    }
+
     private void applyMode() {
+        if (intervalGate) {
+            // 休息间隔：不给按钮、不答题，到点自动放孩子去看下一场
+            titleText.setText("先让眼睛休息一下");
+            messageText.setText("刚玩完一场，休息完自动开始下一场");
+            restButton.setVisibility(View.GONE);
+            quizButton.setVisibility(View.GONE);
+            choiceRow.setVisibility(View.GONE);
+            quizPanel.setVisibility(View.GONE);
+            // 按钮都藏起来后没有可聚焦的控件，把焦点落在标题上当锚点
+            titleText.setFocusable(true);
+            titleText.setFocusableInTouchMode(false);
+            titleText.requestFocus();
+            return;
+        }
         if (windowGate) {
             titleText.setText("现在是休息时间");
             messageText.setText("到点再看吧，宠物在等你");
@@ -480,7 +550,9 @@ public final class PetGateActivity extends Activity {
         restButton.setText("好，休息一下");
         int left = Math.max(0, budget.extensionsPerDay - budget.extensionsToday);
         boolean canQuiz = budget.canQuiz() && left > 0;
-        quizButton.setText(String.format(Locale.CHINA, "今天还能答题 %d 次", left));
+        // 续时时长是家长配的，文案里不能写死 5 分钟
+        quizButton.setText("答题再玩 " + Budget.formatMinutes(PetStore.extensionMinutes(this))
+                + " · 还能 " + left + " 次");
         if (canQuiz) {
             quizButton.setVisibility(View.VISIBLE);
         } else {
@@ -562,6 +634,33 @@ public final class PetGateActivity extends Activity {
         handler.postDelayed(finishRunnable, 900L);
     }
 
+    /**
+     * 休息间隔走完：自动放行去看下一场。
+     *
+     * 只清闸门，不碰场次和星星：这一场的账在休息时（onRest / onQuizFail）已经记过了，
+     * 这里再记一次会把孩子的场次多扣一场。
+     */
+    private void releaseAfterRest() {
+        if (finishedChoice) {
+            return;
+        }
+        finishedChoice = true;
+        handler.removeCallbacksAndMessages(null);
+        budget.gateOpen = false;
+        budget.gateReason = Budget.GATE_NORMAL;
+        PetStore.saveBudget(this, budget);
+        choiceRow.setVisibility(View.GONE);
+        quizPanel.setVisibility(View.GONE);
+        countdownText.setVisibility(View.GONE);
+        celebrationText.setVisibility(View.GONE);
+        petView.setVisibility(View.VISIBLE);
+        titleText.setText("休息好啦");
+        messageText.setText("可以看下一场了");
+        petView.play(PetView.ANIM_HAPPY);
+        speak("休息好啦，可以看下一场了");
+        handler.postDelayed(finishRunnable, 900L);
+    }
+
     private void startQuiz() {
         if (!budget.canQuiz()) {
             doRest(false);
@@ -609,7 +708,8 @@ public final class PetGateActivity extends Activity {
         if (windowGate) {
             messageText.setText("现在是休息时间");
         } else {
-            messageText.setText("答对 2 题，再玩 5 分钟");
+            messageText.setText("答对 2 题，再玩 "
+                    + Budget.formatMinutes(PetStore.extensionMinutes(this)));
         }
         messageText.setVisibility(View.VISIBLE);
         feedbackText.setTextColor(PetUi.TEXT_DIM);
@@ -763,9 +863,10 @@ public final class PetGateActivity extends Activity {
             petView.play(pass ? PetView.ANIM_HAPPY : PetView.ANIM_IDLE);
         }
         if (pass) {
-            titleText.setText("答对啦，再玩 5 分钟");
+            String ext = Budget.formatMinutes(PetStore.extensionMinutes(this));
+            titleText.setText("答对啦，再玩 " + ext);
             messageText.setText("到点记得休息哦");
-            speak("答对啦，再玩五分钟");
+            speak("答对啦，再玩 " + ext);
         } else {
             titleText.setText("差一点点，明天我们再试");
             messageText.setText("宠物会等你的");

@@ -9,10 +9,11 @@
 ```text
 app/src/com/dsh/tvhud/
 ├── home/     HomeActivity：首页菜单与导航
-├── usage/    UsageDay / HistoryStore / Categories / PlayEntry / MainActivity / TimelineView
+├── usage/    UsageDay / HistoryStore / Categories / PlayEntry / MainActivity
 ├── report/   ReportsActivity / ReportEngine / 周月年 Canvas / ChartAxis / BarStack
 ├── hud/      HudService / HudView / CtrlReceiver / BootReceiver / BootAccessibilityService
-└── pet/      PetActivity / PetGate / PetSettings / PetReport / PetView / PetEngine / Shop / PetStore
+├── pet/      PetActivity / PetGate / PetSettings / PetReport / PetView / PetEngine / Shop / PetStore
+└── ui/       Theme / Looks / Scheme / Accent / Palette / Metrics / Tape / TapeView / ThemeStore / Ui
 ```
 
 依赖方向：`home → {usage, report, pet, hud}`；`hud → {usage, pet}`；`usage` / `report` 会

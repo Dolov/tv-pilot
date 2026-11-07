@@ -336,13 +336,71 @@ section "10. git 跟踪文件中是否混入敏感/构建产物"
 if ! git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   skip "当前目录不是 git 仓库，跳过 git ls-files 检查"
 else
-  tracked_bad="$(git -C "$REPO_ROOT" ls-files | grep -E '(^|/)\.env$|\.apk$|(^|/)\.tools/|^app/assets/.*\.(otf|ttf)$' || true)"
+  tracked_bad="$(git -C "$REPO_ROOT" ls-files | grep -E '(^|/)\.env$|\.apk$|(^|/)\.tools/|^app/assets/.*\.(otf|ttf)$|^probe/|local\.md$|(^|/)references/local\.md$' || true)"
   tracked_total="$(git -C "$REPO_ROOT" ls-files | wc -l | tr -d '[:space:]')"
   if [[ -z "$tracked_bad" ]]; then
-    pass "git ls-files 干净（${tracked_total} 个文件；无 .env / APK / .tools / 字体）"
+    pass "git ls-files 干净（${tracked_total} 个文件；无 .env / APK / .tools / 字体 / probe 观看记录）"
   else
     fail "以下文件不应被 git 跟踪"
     printf '%s\n' "$tracked_bad" | sed 's/^/      /'
+  fi
+fi
+
+# ---------- 11. 主题守卫：颜色字面量 ----------
+# 规则：颜色只许在 app/src/com/dsh/tvhud/ui/（token 层）里定义。
+# - 已迁移的应用层 home/ + usage/ 必须零字面量（Categories.java 的数据类别色是唯一例外）；
+# - 家长设置页（pet/PetSettingsActivity.java，跟着「外观」换肤）单独要求零字面量；
+# - 其他页面（report/ pet/ hud/）给一个「只降不升」的预算，防止新代码继续漂。
+section "11. 主题守卫（颜色字面量只许待在 ui/）"
+APP_PKG="$REPO_ROOT/app/src/com/dsh/tvhud"
+if [[ -d "$APP_PKG" ]]; then
+  migrated_bad=""
+  for migrated_dir in home usage report; do
+    while IFS= read -r f; do
+      [[ -f "$f" ]] || continue
+      case "$f" in
+        */Categories.java) continue ;;
+      esac
+      n="$(grep -oE '0x[0-9A-Fa-f]{8}' "$f" 2>/dev/null \
+        | grep -viE '^0x00000000$' | wc -l | tr -d '[:space:]')"
+      # Color.argb()/Color.rgb() 用十进制分量的「隐形色值」也一并拦
+      m="$(grep -oE 'Color\.(argb|rgb)\(' "$f" 2>/dev/null | wc -l | tr -d '[:space:]')"
+      n=$(( ${n:-0} + ${m:-0} ))
+      if [[ "${n:-0}" -gt 0 ]]; then
+        migrated_bad="${migrated_bad}${migrated_bad:+, }${f#"$REPO_ROOT"/}(${n})"
+      fi
+    done < <(find "$APP_PKG/$migrated_dir" -name '*.java' -print 2>/dev/null)
+  done
+  if [[ -z "$migrated_bad" ]]; then
+    pass "已迁移页面（home/ + usage/ + report/，Categories 除外）无颜色字面量"
+  else
+    fail "已迁移页面又出现颜色字面量：${migrated_bad}（颜色应从 ui/Palette 取）"
+  fi
+
+  # 家长设置页是配置面：跟着「外观」换肤，单独要求零字面量；
+  # 宠物房间 / 拦截页保留童趣语气（story），仍走下面的总预算。
+  SETTINGS_PAGE="$APP_PKG/pet/PetSettingsActivity.java"
+  if [[ -f "$SETTINGS_PAGE" ]]; then
+    settings_bad=""
+    sn="$(grep -oE '0x[0-9A-Fa-f]{8}' "$SETTINGS_PAGE" 2>/dev/null \
+      | grep -viE '^0x00000000$' | wc -l | tr -d '[:space:]')"
+    sm="$(grep -oE 'Color\.(argb|rgb)\(' "$SETTINGS_PAGE" 2>/dev/null | wc -l | tr -d '[:space:]')"
+    settings_bad=$(( ${sn:-0} + ${sm:-0} ))
+    if [[ "${settings_bad:-0}" -eq 0 ]]; then
+      pass "家长设置页（pet/PetSettingsActivity）无颜色字面量"
+    else
+      fail "家长设置页又出现 ${settings_bad} 处颜色字面量（颜色应从 ui/Palette 取）"
+    fi
+  fi
+
+  # 只降不升：当前 263（v1.28，ui/ 之外）。降下来后要把这个数字改小。
+  LITERAL_BUDGET=263
+  actual="$(find "$APP_PKG" -path "$APP_PKG/ui" -prune -o -name '*.java' -print0 2>/dev/null \
+    | xargs -0 grep -hoE '0x[0-9A-Fa-f]{8}' 2>/dev/null | wc -l | tr -d '[:space:]')"
+  if [[ "${actual:-0}" -le "$LITERAL_BUDGET" ]]; then
+    pass "颜色字面量预算：${actual} / ${LITERAL_BUDGET}（ui/ 之外，只降不升）"
+  else
+    fail "颜色字面量超预算：${actual} > ${LITERAL_BUDGET}（ui/ 之外）；颜色请从 Palette 取"
   fi
 fi
 

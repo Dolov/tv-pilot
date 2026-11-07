@@ -22,3 +22,10 @@ app/assets/MIUI_EX_Light.ttf
 
 # ---- 本机事实（setup.sh 生成：当前电视型号/档案/App 版本；不进仓库）----
 .agents/skills/tv-pilot/references/local.md
+
+# ---- 探测/统计落盘目录（probe.sh、usage.sh 的默认输出；含真实观看记录，不进仓库）----
+probe/
+
+# ---- 工具脚本的编译产物（tools/theme-preview/*.class 等）----
+tools/**/*.class
+tools/**/*.jar

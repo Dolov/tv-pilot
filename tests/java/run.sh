@@ -62,6 +62,15 @@ SOURCES=(
   "$APP_SRC/usage/ArchivePolicy.java"
   "$APP_SRC/usage/ArchiveBackfill.java"
   "$APP_SRC/usage/HistoryStore.java"
+  "$APP_SRC/ui/Accent.java"
+  "$APP_SRC/ui/Scheme.java"
+  "$APP_SRC/ui/Contrast.java"
+  "$APP_SRC/ui/Palette.java"
+  "$APP_SRC/ui/Metrics.java"
+  "$APP_SRC/ui/Theme.java"
+  "$APP_SRC/ui/Themes.java"
+  "$APP_SRC/ui/Looks.java"
+  "$APP_SRC/ui/Tape.java"
   "$APP_SRC/report/DayAgg.java"
   "$APP_SRC/report/BarStack.java"
   "$APP_SRC/report/ChartAxis.java"
@@ -74,6 +83,8 @@ SOURCES=(
   "$APP_SRC/pet/QuizBank.java"
   "$APP_SRC/pet/Shop.java"
   "$APP_SRC/pet/PetJournal.java"
+  "$APP_SRC/pet/PinGrace.java"
+  "$APP_SRC/pet/SettingsFacts.java"
 )
 
 # 用数组收集桩文件：路径带空格也不会被拆开（macOS bash 3.2 也支持）
@@ -88,7 +99,11 @@ done < <(find "$HERE/stubs" -name '*.java')
   "$HERE/src/com/dsh/tvhud/report/ReportCoreTest.java" \
   "$HERE/src/com/dsh/tvhud/usage/CategoriesTest.java" \
   "$HERE/src/com/dsh/tvhud/pet/PetCoreTest.java" \
-  "$HERE/src/com/dsh/tvhud/pet/PetShopTest.java" 2>"$TMP/javac.err"
+  "$HERE/src/com/dsh/tvhud/pet/PetShopTest.java" \
+  "$HERE/src/com/dsh/tvhud/pet/PinGraceTest.java" \
+  "$HERE/src/com/dsh/tvhud/pet/SettingsFactsTest.java" \
+  "$HERE/src/com/dsh/tvhud/ui/ThemeCoreTest.java" \
+  "$HERE/src/com/dsh/tvhud/ui/TapeCoreTest.java" 2>"$TMP/javac.err"
 if [[ $? -ne 0 ]]; then
   echo "FAIL 单元测试编译失败：" >&2
   sed 's/^/      /' "$TMP/javac.err" >&2
@@ -99,4 +114,8 @@ fi
 "$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.report.ReportCoreTest || exit 1
 "$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.usage.CategoriesTest || exit 1
 "$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.pet.PetCoreTest || exit 1
-"$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.pet.PetShopTest
+"$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.pet.PetShopTest || exit 1
+"$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.pet.PinGraceTest || exit 1
+"$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.pet.SettingsFactsTest || exit 1
+"$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.ui.ThemeCoreTest || exit 1
+"$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.ui.TapeCoreTest

@@ -1,5 +1,7 @@
 package com.dsh.tvhud.report;
 
+import com.dsh.tvhud.ui.Contrast;
+import com.dsh.tvhud.ui.Palette;
 import com.dsh.tvhud.usage.Categories;
 import com.dsh.tvhud.usage.UsageDay;
 
@@ -25,8 +27,8 @@ public final class WeekReportView extends ReportCanvasView {
     private Kpi[] cachedKpis;
     private long[][] cachedHeat;
 
-    public WeekReportView(Context context) {
-        super(context);
+    public WeekReportView(Context context, Palette palette) {
+        super(context, palette);
         chartStroke.setStyle(Paint.Style.STROKE);
     }
 
@@ -107,9 +109,9 @@ public final class WeekReportView extends ReportCanvasView {
 
         // ---- 7 天节奏 + 构成条 ----
         card(c, PAD, ROW1_TOP, leftW, ROW1_H);
-        text(c, "7 天节奏", PAD + 10f, ROW1_TOP + 15f, 9.5f, 0xffd5e5f5, cjk,
+        text(c, "7 天节奏", PAD + 10f, ROW1_TOP + 15f, 9.5f, C_TEXT, cjk,
                 Paint.Align.LEFT, 0.6f);
-        text(c, "DAILY RHYTHM", PAD + 68f, ROW1_TOP + 14f, 5.5f, 0xaa38bdf8, din,
+        text(c, "DAILY RHYTHM", PAD + 68f, ROW1_TOP + 14f, 5.5f, Contrast.alpha(C_CYAN, 0.67f), din,
                 Paint.Align.LEFT, 1.2f);
         drawLegend(c, PAD + 210f, ROW1_TOP + 14.5f, leftW - 218f);
         drawComposition(c, PAD + 10f, ROW1_TOP + 23f, leftW - 20f);
@@ -117,9 +119,9 @@ public final class WeekReportView extends ReportCanvasView {
 
         // ---- 日流水 ----
         card(c, rightX, ROW1_TOP, rightW, ROW1_H);
-        text(c, "日流水", rightX + 10f, ROW1_TOP + 15f, 9.5f, 0xffd5e5f5, cjk,
+        text(c, "日流水", rightX + 10f, ROW1_TOP + 15f, 9.5f, C_TEXT, cjk,
                 Paint.Align.LEFT, 0.6f);
-        text(c, "DAY BY DAY", rightX + 50f, ROW1_TOP + 14f, 5.5f, 0xaa38bdf8, din,
+        text(c, "DAY BY DAY", rightX + 50f, ROW1_TOP + 14f, 5.5f, Contrast.alpha(C_CYAN, 0.67f), din,
                 Paint.Align.LEFT, 1.2f);
         text(c, "每天从几点看到几点", rightX + rightW - 10f, ROW1_TOP + 14.5f, 6.5f, C_DIM,
                 cjk, Paint.Align.RIGHT, 0.2f);
@@ -129,9 +131,9 @@ public final class WeekReportView extends ReportCanvasView {
         float heatW = 492f;
         float topW = CONTENT_W - heatW - 6f;
         card(c, PAD, ROW2_TOP, heatW, ROW2_H);
-        text(c, "时段分布", PAD + 10f, ROW2_TOP + 15f, 9.5f, 0xffd5e5f5, cjk,
+        text(c, "时段分布", PAD + 10f, ROW2_TOP + 15f, 9.5f, C_TEXT, cjk,
                 Paint.Align.LEFT, 0.6f);
-        text(c, "7×24 HEATMAP", PAD + 70f, ROW2_TOP + 14f, 5.5f, 0xaa38bdf8, din,
+        text(c, "7×24 HEATMAP", PAD + 70f, ROW2_TOP + 14f, 5.5f, Contrast.alpha(C_CYAN, 0.67f), din,
                 Paint.Align.LEFT, 1.2f);
         drawHeatScale(c, PAD + heatW - 74f, ROW2_TOP + 10f, 64f);
         drawWeekHeat(c, PAD + 10f, ROW2_TOP + 24f, heatW - 20f, ROW2_H - 30f);
@@ -148,7 +150,7 @@ public final class WeekReportView extends ReportCanvasView {
         }
         // 上一周示意：直接标出是哪一周，不写「上周」
         chartStroke.setShader(null);
-        chartStroke.setColor(0x997d8fa2);
+        chartStroke.setColor(Contrast.alpha(C_SUB, 0.60f));
         chartStroke.setStrokeWidth(0.8f);
         chartStroke.setPathEffect(new android.graphics.DashPathEffect(new float[]{2f, 2f}, 0f));
         c.drawLine(cx, y - 1.6f, cx + 12f, y - 1.6f, chartStroke);
@@ -156,8 +158,8 @@ public final class WeekReportView extends ReportCanvasView {
         String prevWeek = "对比 "
                 + ReportPeriod.label(ReportPeriod.WEEK,
                         ReportPeriod.shift(ReportPeriod.WEEK, r.startDay, -1), r.todayStart);
-        if (cx + 15f + measure(prevWeek, 6.2f, cjk, 0f) <= x + maxW) {
-            text(c, prevWeek, cx + 15f, y, 6.2f, C_DIM, cjk, Paint.Align.LEFT, 0f);
+        if (cx + 16f + measure(prevWeek, LEGEND, cjk, 0f) <= x + maxW) {
+            text(c, prevWeek, cx + 16f, y, LEGEND, C_DIM, cjk, Paint.Align.LEFT, 0f);
         }
     }
 
@@ -171,7 +173,7 @@ public final class WeekReportView extends ReportCanvasView {
             }
             float sw = w * cats[i] / Math.max(1L, r.totalMs);
             fill.setShader(null);
-            fill.setColor(Categories.color(i));
+            fill.setColor(palette.dataColor(i));
             chartRect.set(bx, y, bx + sw, y + 4.5f);
             c.drawRoundRect(chartRect, 1.3f, 1.3f, fill);
             bx += sw + 1.2f;
@@ -183,13 +185,13 @@ public final class WeekReportView extends ReportCanvasView {
                 continue;
             }
             String s = Categories.name(i) + " " + ReportMath.hhmm(cats[i]) + " " + pct[i] + "%";
-            float cw = measure(s, 6.2f, cjk, 0f) + 12f;
+            float cw = measure(s, LEGEND, cjk, 0f) + 14f;
             if (cx + cw > x + w) {
                 return;
             }
-            fill.setColor(Categories.color(i));
-            c.drawCircle(cx + 2f, y + 12f, 1.6f, fill);
-            text(c, s, cx + 6f, y + 14f, 6.2f, C_SUB, cjk, Paint.Align.LEFT, 0f);
+            fill.setColor(palette.dataColor(i));
+            c.drawCircle(cx + 2f, y + 13f, 1.8f, fill);
+            text(c, s, cx + 6.5f, y + 15.5f, LEGEND, C_SUB, cjk, Paint.Align.LEFT, 0f);
             cx += cw;
         }
     }
@@ -226,7 +228,7 @@ public final class WeekReportView extends ReportCanvasView {
         chartText.setTextAlign(Paint.Align.RIGHT);
         for (float v = 0; v <= yMax; v += step) {
             float gy = bottom - v / yMax * plotH;
-            chartStroke.setColor(v == 0 ? 0x3869aacc : 0x1469aacc);
+            chartStroke.setColor(v == 0 ? Contrast.alpha(C_CYAN, 0.22f) : C_TRACK);
             c.drawLine(plotX, gy, x + w, gy, chartStroke);
             chartText.setColor(C_DIM);
             c.drawText(axisLabel(v), x + labelW - 4f, gy + 2f, chartText);
@@ -235,7 +237,7 @@ public final class WeekReportView extends ReportCanvasView {
         float slot = plotW / 7f;
         float bw = Math.min(30f, slot * 0.52f);
         // 上周刻度（只有可比时画，和 KPI/图例保持一致）
-        chartStroke.setColor(0x887d8fa2);
+        chartStroke.setColor(Contrast.alpha(C_SUB, 0.53f));
         chartStroke.setStrokeWidth(0.7f);
         chartStroke.setPathEffect(new android.graphics.DashPathEffect(new float[]{2.5f, 2f}, 0f));
         for (int i = 0; i < 7 && i < r.prevDays.size() && r.prevComparable(); i++) {
@@ -255,10 +257,10 @@ public final class WeekReportView extends ReportCanvasView {
             float bx = cx - bw / 2f;
             long dayStart = d != null ? d.dayStart : r.startDay + i * UsageDay.DAY_MS;
             if (d == null) {
-                text(c, "未到", cx, bottom - 3f, 5.8f, 0xff3a4654, cjk,
+                text(c, "未到", cx, bottom - 3f, 5.8f, C_DIM2, cjk,
                         Paint.Align.CENTER, 0.4f);
             } else if (d.totalMs <= 0) {
-                text(c, "无记录", cx, bottom - 3f, 5.6f, 0xff5c6b7d, cjk,
+                text(c, "无记录", cx, bottom - 3f, 5.6f, C_DIM, cjk,
                         Paint.Align.CENTER, 0.4f);
             } else {
                 // 堆叠几何统一走 BarStack（已单元测试），别在视图里再手写一遍
@@ -268,7 +270,7 @@ public final class WeekReportView extends ReportCanvasView {
                         continue;
                     }
                     chartFill.setShader(new LinearGradient(0, stackTops[ci], 0, stackBots[ci],
-                            Categories.color(ci), (Categories.color(ci) & 0x00ffffff) | 0x55000000,
+                            palette.dataColor(ci), Contrast.alpha(palette.dataColor(ci), 0.33f),
                             Shader.TileMode.CLAMP));
                     chartRect.set(bx, stackTops[ci] + 0.6f, bx + bw, stackBots[ci] - 0.6f);
                     c.drawRoundRect(chartRect, 1.2f, 1.2f, chartFill);
@@ -278,16 +280,16 @@ public final class WeekReportView extends ReportCanvasView {
                         6.8f, C_TEXT, din, Paint.Align.CENTER, 0.2f);
             }
             text(c, "周" + ReportMath.WEEK_CN[i],
-                    cx, bottom + 8f, 6.5f, d == null ? 0xff3a4654 : 0xff93a4b8, cjk,
+                    cx, bottom + 8f, 6.5f, d == null ? C_DIM2 : C_SUB, cjk,
                     Paint.Align.CENTER, 0.6f);
             text(c, ReportMath.dateMd(dayStart), cx, bottom + 15f, 5.8f,
-                    d == null ? 0xff3a4654 : C_DIM, din, Paint.Align.CENTER, 0.2f);
+                    d == null ? C_DIM2 : C_DIM, din, Paint.Align.CENTER, 0.2f);
         }
 
         // 日均线
         if (r.totalMs > 0) {
             float ay = bottom - (r.avgMs() / 60000f) / yMax * plotH;
-            chartStroke.setColor(0xaa38bdf8);
+            chartStroke.setColor(Contrast.alpha(C_CYAN, 0.67f));
             chartStroke.setStrokeWidth(0.8f);
             chartStroke.setPathEffect(new android.graphics.DashPathEffect(new float[]{1.5f, 3f}, 0f));
             c.drawLine(plotX, ay, x + w, ay, chartStroke);
@@ -296,41 +298,41 @@ public final class WeekReportView extends ReportCanvasView {
     }
 
     private void drawLedger(Canvas c, float x, float y, float w, float h) {
-        float rowH = Math.min(18f, h / 7f);
+        float rowH = Math.min(19.6f, h / 7f);
         for (int i = 0; i < 7; i++) {
             DayAgg d = i < r.days.size() ? r.days.get(i) : null;
             float ry = y + rowH * i;
             float baseline = ry + rowH * 0.66f;
             long dayStart = d != null ? d.dayStart : r.startDay + i * UsageDay.DAY_MS;
             hairline(c, x, ry + rowH - 1f, w);
-            text(c, "周" + ReportMath.WEEK_CN[i], x, baseline, 6.2f,
-                    d == null ? 0xff3a4654 : C_SUB, cjk, Paint.Align.LEFT, 0f);
-            text(c, ReportMath.dateMd(dayStart), x + 20f, baseline, 5.8f,
-                    d == null ? 0xff3a4654 : C_DIM, din, Paint.Align.LEFT, 0f);
+            text(c, "周" + ReportMath.WEEK_CN[i], x, baseline, 9.0f,
+                    d == null ? C_DIM2 : C_SUB, cjk, Paint.Align.LEFT, 0f);
+            text(c, ReportMath.dateMd(dayStart), x + 20f, baseline, 8.4f,
+                    d == null ? C_DIM2 : C_DIM, din, Paint.Align.LEFT, 0f);
             if (d == null) {
-                text(c, "—", x + 50f, baseline, 5.8f, 0xff3a4654, din, Paint.Align.LEFT, 0f);
+                text(c, "—", x + 52f, baseline, 8.4f, C_DIM2, din, Paint.Align.LEFT, 0f);
                 continue;
             }
             String time = d.totalMs <= 0 ? "—"
                     : ReportMath.clock(d.firstMs) + "–" + ReportMath.clock(d.lastMs);
-            text(c, time, x + 50f, baseline, 5.8f, 0xffcfe0f0, din,
+            text(c, time, x + 52f, baseline, 8.8f, C_TEXT, din,
                     Paint.Align.LEFT, 0f);
             text(c, d.totalMs <= 0 ? "—" : ReportMath.hhmm(d.totalMs), x + 130f,
-                    baseline, 6.2f, C_TEXT, din, Paint.Align.RIGHT, 0f);
+                    baseline, 9.2f, C_TEXT, din, Paint.Align.RIGHT, 0f);
             if (d.totalMs <= 0) {
-                text(c, "无记录", x + 150f, baseline, 5.8f, 0xff3a4654, cjk,
+                text(c, "无记录", x + 150f, baseline, 8.4f, C_DIM2, cjk,
                         Paint.Align.LEFT, 0f);
                 continue;
             }
             int main = d.mainCat < 0 ? 4 : d.mainCat;
             fill.setShader(null);
-            fill.setColor(Categories.color(main));
+            fill.setColor(palette.dataColor(main));
             c.drawCircle(x + 145f, ry + rowH * 0.62f, 1.5f, fill);
-            text(c, Categories.name(main), x + 150f, baseline, 5.8f, C_SUB,
+            text(c, Categories.name(main), x + 150f, baseline, 8.4f, C_SUB,
                     cjk, Paint.Align.LEFT, 0f);
             String name = d.mainCat == Categories.VIDEO ? topNameForDay(d.dayStart) : "";
-            text(c, fit(name, w - 215f, 5.8f, cjk), x + 185f, baseline, 5.8f,
-                    0xffdbe8f4, cjk, Paint.Align.LEFT, 0f);
+            text(c, fit(name, w - 222f, 8.4f, cjk), x + 192f, baseline, 8.4f,
+                    C_TEXT, cjk, Paint.Align.LEFT, 0f);
         }
     }
 

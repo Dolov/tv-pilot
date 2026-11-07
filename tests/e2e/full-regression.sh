@@ -7,7 +7,8 @@
 #   3. 使用记录：能按天回看（落到最近有归档的一天），左右键翻日期；
 #   4. 使用报告：周/月/年三天粒度 + 翻页 + 回本期 + 返回；
 #   5. 电子宠物：房间 + 照顾/商店/衣柜/房间四个分区切换 + 返回；
-#   6. 家长设置：首页菜单「家长设置」能进 PIN 页、返回回首页；
+#   6. 家长设置：首页菜单能进（PIN 页或 5 分钟免输）→ 目录 5 组 → OK 进分组
+#      → 返回回目录且焦点留在原组 → 目录再返回回首页；
 #   7. 屏保角标：HUD 服务在跑、无障碍条目在；
 #   8. 数据侧：归档文件可读、完整性自检无告警、报告不变量无告警；
 #   9. 全程无 FATAL EXCEPTION。
@@ -165,8 +166,10 @@ fi
 
 # ---------- 5. 电子宠物（房间 / 商店 / 衣柜 / 装饰） ----------
 step "电子宠物"
-for i in 1 2 3 4 5 6; do key 19 0.2; done
-for i in 1 2; do key 20 0.4; done
+# 从报告页返回后焦点在第一项；↓↓ 到第 3 项「我的宠物」
+# （首页菜单上下键现在两端循环，不能再靠「按满 ↑」归位）
+key 20 0.4
+key 20 0.4
 key 23 3.5
 if resumed | grep -q 'com.dsh.tvhud/.pet.PetActivity'; then
   pass "宠物房间打开（PetActivity）"
@@ -195,18 +198,138 @@ else
   fail "宠物房间返回键没回首页" "$(resumed)"
 fi
 
-# ---------- 6. 家长设置（首页菜单入口） ----------
-step "家长设置（首页菜单）"
-# 从顶部数第 4 项（使用记录 / 使用报告 / 我的宠物 / 家长设置），先按满 ↑ 归位
-for i in 1 2 3 4 5 6; do key 19 0.2; done
+# ---------- 6. 家长设置（首页菜单入口，v1.27 起是二级菜单） ----------
+step "家长设置（首页菜单 / 二级菜单）"
+
+# uiautomator 小工具：把当前界面层级 dump 到 $SHOTS/ui.xml（真机实测 dump+pull ≈ 2s）。
+# 为什么用它：二级菜单的「目录 5 组」「返回后焦点留在哪一组」在 Activity 名字上看不出来。
+dump_ui() {
+  adb_sh shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || return 1
+  adb_sh pull /sdcard/ui.xml "$SHOTS/ui.xml" >/dev/null 2>&1 || return 1
+  [[ -s "$SHOTS/ui.xml" ]] || return 1
+  if [[ -n "${1:-}" ]]; then cp "$SHOTS/ui.xml" "$SHOTS/$1.xml" 2>/dev/null || true; fi
+  return 0
+}
+# ui_has_text：整个文本节点恰好等于；ui_has：文本节点包含子串（长句里找关键词用）。
+ui_has_text() { grep -q "text=\"$1\"" "$SHOTS/ui.xml" 2>/dev/null; }
+ui_has() { grep -q "text=\"[^\"]*$1[^\"]*\"" "$SHOTS/ui.xml" 2>/dev/null; }
+# 焦点节点的 bounds 是否包住某个文本节点（断言焦点落在目录的哪一行）
+ui_focused_contains() {
+  python3 - "$SHOTS/ui.xml" "$1" <<'PY'
+import sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+want = sys.argv[2]
+def bounds(n):
+    try:
+        a, c = n.get('bounds', '').split('][')
+        x1, y1 = a.lstrip('[').split(',')
+        x2, y2 = c.rstrip(']').split(',')
+        return int(x1), int(y1), int(x2), int(y2)
+    except ValueError:
+        return None
+focused = [n for n in root.iter('node') if n.get('focused') == 'true']
+if not focused or bounds(focused[0]) is None:
+    sys.exit(1)
+fx1, fy1, fx2, fy2 = bounds(focused[0])
+for n in root.iter('node'):
+    if n.get('text') != want:
+        continue
+    b = bounds(n)
+    if b and fx1 <= b[0] and fy1 <= b[1] and b[2] <= fx2 and b[3] <= fy2:
+        sys.exit(0)
+sys.exit(1)
+PY
+}
+
+# 从首页第一项开始：↓↓↓ 到第 4 项「家长设置」（上下键两端循环，靠 ↓ 推进最稳）
 for i in 1 2 3; do key 20 0.4; done
 key 23 3.0
 if resumed | grep -q 'com.dsh.tvhud/.pet.PetSettingsActivity'; then
-  pass "家长设置从首页菜单打开（PIN 页）"
+  pass "家长设置从首页菜单打开"
 else
   fail "家长设置没从首页菜单打开" "$(resumed)"
 fi
+
+# 入口受 PIN 保护：免输窗口（输对后 5 分钟）过期则先出现 PIN 页，否则直接进目录。
+UI_OK=0; DIR=0
+dump_ui "06-parent-settings-ui" && UI_OK=1
+if [[ "$UI_OK" -eq 1 ]] && ui_has_text '确定' && ui_has '免输'; then
+  pass "出现 PIN 页（免输窗口已过期）"
+  # 2580：↑↑ OK、↑×5 OK、↑×8 OK、OK；连错 5 次会锁 60 秒
+  for i in 1 2; do key 19 0.35; done; key 23 0.35
+  for i in 1 2 3 4 5; do key 19 0.35; done; key 23 0.35
+  for i in 1 2 3 4 5 6 7 8; do key 19 0.35; done; key 23 0.35
+  key 23 3.0
+  sleep 1
+  if dump_ui "06-parent-settings-ui-dir" && ui_has '↑↓ 选择 · OK 进入 · 返回键退出'; then
+    DIR=1
+    pass "PIN 2580 输对，进入目录页"
+  else
+    fail "PIN 输完没进目录页" "检查 2580 是否被改过、是否锁 60 秒"
+  fi
+elif [[ "$UI_OK" -eq 1 ]] && ui_has_text '确定' && ui_has '秒后再试'; then
+  fail "家长设置 PIN 锁定中（连错 5 次锁 60 秒），等过期再跑"
+elif [[ "$UI_OK" -eq 1 ]] && ui_has '↑↓ 选择 · OK 进入 · 返回键退出'; then
+  DIR=1
+  pass "5 分钟免输窗口内直接进设置页"
+elif [[ "$UI_OK" -eq 1 ]]; then
+  fail "认不出家长设置界面" "既不是 PIN 页也不是目录页"
+else
+  skip "uiautomator 读不到界面，跳过二级菜单断言（仍验证返回）"
+fi
 screenshot "06-parent-settings"
+
+if [[ "$DIR" -eq 1 ]]; then
+  # 目录一屏 5 组：前 4 组进分组页，「外观」是直接打开全屏预览的动作行。
+  MISSING=""
+  for g in 今天 时间与场次 允许时段 宠物与成长 外观; do
+    ui_has_text "$g" || MISSING="$MISSING $g"
+  done
+  if [[ -z "$MISSING" ]]; then
+    pass "目录一屏放下 5 个分组（今天/时间与场次/允许时段/宠物与成长/外观）"
+  else
+    fail "目录分组缺失：$MISSING"
+  fi
+  if ui_has '分钟/场' && ui_has '退化'; then
+    pass "目录右侧规则摘要已渲染"
+  else
+    fail "目录右侧规则摘要缺失"
+  fi
+
+  # OK 进第一组「今天」（焦点默认在第 1 行），断言分组页专属文案。
+  key 23 2.5
+  if resumed | grep -q 'com.dsh.tvhud/.pet.PetSettingsActivity'; then
+    pass "OK 进第一组（仍在 PetSettingsActivity）"
+  else
+    fail "OK 进分组后不在家长设置页" "$(resumed)"
+  fi
+  if dump_ui "06-parent-settings-group" && ui_has '家长设置 ／ 01' && ui_has_text '临时加场'; then
+    pass "第一组「今天」打开（面包屑 01 + 临时加场）"
+  else
+    fail "第一组「今天」内容不对" "缺面包屑「家长设置 ／ 01」或「临时加场」"
+  fi
+  screenshot "06-parent-settings-group"
+
+  # 返回：分组页 → 目录，焦点要停在刚进入的那一组（第 1 组「今天」）。
+  key 4 2.0
+  if resumed | grep -q 'com.dsh.tvhud/.pet.PetSettingsActivity'; then
+    pass "分组页返回键仍在家长设置（没直接退回首页）"
+  else
+    fail "分组页返回键直接退出了" "$(resumed)"
+  fi
+  if dump_ui "06-parent-settings-back" && ui_has '↑↓ 选择 · OK 进入 · 返回键退出'; then
+    if ui_focused_contains '今天'; then
+      pass "返回目录且焦点落在第 1 组「今天」"
+    else
+      fail "返回目录后焦点不在第 1 组"
+    fi
+  else
+    fail "分组页返回后没回到目录页"
+  fi
+fi
+
+# 目录再按返回才退出（首页入口进来就回 HomeActivity）。
+# 非 DIR 分支（读不到界面 / PIN 没进去）此时停在 PIN 页或目录页，一次返回都直接回首页。
 key 4 2.0
 if resumed | grep -q 'com.dsh.tvhud/.home.HomeActivity'; then
   pass "家长设置返回键回到首页"

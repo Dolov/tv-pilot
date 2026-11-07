@@ -1,5 +1,7 @@
 package com.dsh.tvhud.report;
 
+import com.dsh.tvhud.ui.Contrast;
+import com.dsh.tvhud.ui.Palette;
 import com.dsh.tvhud.usage.Categories;
 
 import android.content.Context;
@@ -28,8 +30,8 @@ public final class YearReportView extends ReportCanvasView {
     private long[][] cachedMonthCats;
     private long[][] cachedHeat;
 
-    public YearReportView(Context context) {
-        super(context);
+    public YearReportView(Context context, Palette palette) {
+        super(context, palette);
         chartStroke.setStyle(Paint.Style.STROKE);
     }
 
@@ -100,11 +102,12 @@ public final class YearReportView extends ReportCanvasView {
     protected void drawBody(Canvas c) {
         // 全年走势
         card(c, PAD, ROW1_TOP, CONTENT_W, ROW1_H);
-        text(c, "全年走势", PAD + 10f, ROW1_TOP + 15f, 9.5f, 0xffd5e5f5, cjk,
+        text(c, "全年走势", PAD + 10f, ROW1_TOP + 15f, 9.5f, C_TEXT, cjk,
                 Paint.Align.LEFT, 0.6f);
-        text(c, "12 MONTHS", PAD + 66f, ROW1_TOP + 14f, 5.5f, 0xaa38bdf8, din,
+        text(c, "12 MONTHS", PAD + 66f, ROW1_TOP + 14f, 5.5f, Contrast.alpha(C_CYAN, 0.67f), din,
                 Paint.Align.LEFT, 1.2f);
-        drawCategoryLegend(c, PAD + 500f, ROW1_TOP + 14.5f, 300f);
+        // 与周报同一个左边距（PAD + 210），三页图例的起始间隔保持一致
+        drawCategoryLegend(c, PAD + 210f, ROW1_TOP + 14.5f, 560f);
         text(c, "月均 " + ReportMath.hhmm(monthAvg()), PAD + CONTENT_W - 10f,
                 ROW1_TOP + 14.5f, 6.5f, C_DIM, cjk, Paint.Align.RIGHT, 0.2f);
         drawMonths(c, PAD + 10f, ROW1_TOP + 26f, CONTENT_W - 20f, ROW1_H - 34f);
@@ -118,17 +121,17 @@ public final class YearReportView extends ReportCanvasView {
         float topX = quarterX + quarterW + 6f;
 
         card(c, heatX, ROW2_TOP, heatW, ROW2_H);
-        text(c, "月份 × 时段", heatX + 10f, ROW2_TOP + 15f, 9.5f, 0xffd5e5f5, cjk,
+        text(c, "月份 × 时段", heatX + 10f, ROW2_TOP + 15f, 9.5f, C_TEXT, cjk,
                 Paint.Align.LEFT, 0.6f);
-        text(c, "SEASON × HOUR", heatX + 76f, ROW2_TOP + 14f, 5.2f, 0xaa38bdf8, din,
+        text(c, "SEASON × HOUR", heatX + 76f, ROW2_TOP + 14f, 5.2f, Contrast.alpha(C_CYAN, 0.67f), din,
                 Paint.Align.LEFT, 1.1f);
         drawHeatScale(c, heatX + heatW - 74f, ROW2_TOP + 10f, 64f);
         drawMonthHourHeat(c, heatX + 10f, ROW2_TOP + 24f, heatW - 20f, ROW2_H - 30f);
 
         card(c, quarterX, ROW2_TOP, quarterW, ROW2_H);
-        text(c, "季度构成", quarterX + 10f, ROW2_TOP + 15f, 9.5f, 0xffd5e5f5, cjk,
+        text(c, "季度构成", quarterX + 10f, ROW2_TOP + 15f, 9.5f, C_TEXT, cjk,
                 Paint.Align.LEFT, 0.6f);
-        text(c, "QUARTERS", quarterX + 66f, ROW2_TOP + 14f, 5.2f, 0xaa38bdf8, din,
+        text(c, "QUARTERS", quarterX + 66f, ROW2_TOP + 14f, 5.2f, Contrast.alpha(C_CYAN, 0.67f), din,
                 Paint.Align.LEFT, 1.1f);
         text(c, "按分类", quarterX + quarterW - 10f, ROW2_TOP + 14.5f, 6.2f, C_DIM, cjk,
                 Paint.Align.RIGHT, 0.2f);
@@ -159,7 +162,7 @@ public final class YearReportView extends ReportCanvasView {
 
         // 季度分隔和 Q 标签
         chartStroke.setShader(null);
-        chartStroke.setColor(0x2269aacc);
+        chartStroke.setColor(Contrast.alpha(C_CYAN, 0.13f));
         chartStroke.setStrokeWidth(0.5f);
         chartStroke.setPathEffect(new android.graphics.DashPathEffect(new float[]{2f, 3f}, 0f));
         for (int q = 1; q < 4; q++) {
@@ -169,18 +172,18 @@ public final class YearReportView extends ReportCanvasView {
         chartStroke.setPathEffect(null);
         for (int q = 0; q < 4; q++) {
             float qx = plotX + slot * (3f * q + 1.5f);
-            text(c, "Q" + (q + 1), qx, plotTop - 3f, 5.8f, 0xaa38bdf8, din,
+            text(c, "Q" + (q + 1), qx, plotTop - 3f, 5.8f, Contrast.alpha(C_CYAN, 0.67f), din,
                     Paint.Align.CENTER, 1.2f);
         }
         // 网格
-        chartStroke.setColor(0x1469aacc);
+        chartStroke.setColor(C_TRACK);
         chartStroke.setStrokeWidth(0.5f);
         chartText.setTypeface(din);
         chartText.setTextSize(5.8f);
         chartText.setTextAlign(Paint.Align.RIGHT);
         for (float v = 0; v <= yMax; v += step) {
             float gy = bottom - v / yMax * plotH;
-            chartStroke.setColor(v == 0 ? 0x3869aacc : 0x1269aacc);
+            chartStroke.setColor(v == 0 ? Contrast.alpha(C_CYAN, 0.22f) : Contrast.alpha(C_CYAN, 0.07f));
             c.drawLine(plotX, gy, x + w, gy, chartStroke);
             chartText.setColor(C_DIM);
             c.drawText(axisLabel(v), x + labelW - 4f, gy + 2f, chartText);
@@ -195,7 +198,7 @@ public final class YearReportView extends ReportCanvasView {
                     continue;
                 }
                 chartFill.setShader(new LinearGradient(0, stackTops[ci], 0, stackBots[ci],
-                        Categories.color(ci), (Categories.color(ci) & 0x00ffffff) | 0x55000000,
+                        palette.dataColor(ci), Contrast.alpha(palette.dataColor(ci), 0.33f),
                         Shader.TileMode.CLAMP));
                 chartRect.set(bx, stackTops[ci] + 0.5f, bx + bw, stackBots[ci] - 0.5f);
                 c.drawRoundRect(chartRect, 1.4f, 1.4f, chartFill);
@@ -213,7 +216,7 @@ public final class YearReportView extends ReportCanvasView {
         long avg = monthAvg();
         if (avg > 0) {
             float ay = bottom - (avg / 60000f) / yMax * plotH;
-            chartStroke.setColor(0xaa38bdf8);
+            chartStroke.setColor(Contrast.alpha(C_CYAN, 0.67f));
             chartStroke.setStrokeWidth(0.8f);
             chartStroke.setPathEffect(new android.graphics.DashPathEffect(new float[]{1.5f, 3f}, 0f));
             c.drawLine(plotX, ay, x + w, ay, chartStroke);
@@ -270,7 +273,7 @@ public final class YearReportView extends ReportCanvasView {
             text(c, "Q" + (q + 1), x, ry + rowH * 0.66f, 6.5f, C_SUB, din,
                     Paint.Align.LEFT, 0.4f);
             fill.setShader(null);
-            fill.setColor(0x0d69aacc);
+            fill.setColor(Contrast.alpha(C_CYAN, 0.05f));
             chartRect.set(trackX, ry + (rowH - barH) / 2f,
                     trackX + trackW, ry + (rowH + barH) / 2f);
             c.drawRoundRect(chartRect, 1.2f, 1.2f, fill);
@@ -280,7 +283,7 @@ public final class YearReportView extends ReportCanvasView {
                     continue;
                 }
                 float sw = trackW * qCats[q][ci] / max;
-                fill.setColor(Categories.color(ci));
+                fill.setColor(palette.dataColor(ci));
                 chartRect.set(bx, ry + (rowH - barH) / 2f, bx + sw,
                         ry + (rowH + barH) / 2f);
                 c.drawRoundRect(chartRect, 1.2f, 1.2f, fill);

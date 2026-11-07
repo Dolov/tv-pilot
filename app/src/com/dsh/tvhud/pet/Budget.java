@@ -9,22 +9,44 @@ import java.util.TimeZone;
  * 纯逻辑，不 import Android；持久化在 {@link PetStore}。所有时间由调用方传入。
  * 口径（见 docs/pet-design.md §4）：
  * - 只累计「视频」时间，中途暂停/关电视，本场剩余时间保留；
- * - 到点开闸门（gateOpen），休息记 1 场，答题通过 +5 分钟（每天最多 N 次）；
+ * - 到点开闸门（gateOpen），休息记 1 场；答题通过按配置加时（次数按配置）；
+ * - 两场之间有可配置的休息间隔（默认 30 分钟），间隔内继续看视频会被拦；
  * - 场次用完不再出题；家长时间不计数；
- * - 周末默认多 1 场（可关）；允许时段外只拦「新开的一场」，不追溯已在看的这一场；
+ * - 周末可按配置多开 N 场；允许时段外只拦「新开的一场」，不追溯已在看的这一场；
  * - 家长可以给「今天」发一张免限卡（freePassDay）：当天不拦时段、场次也放宽，
  *   跨天自动失效（比对的是当天 0 点的时间戳，不用定时器）。
  */
 public final class Budget {
+    // ---- 每场时长：5 分钟 .. 3 小时，默认 15 分钟 ----
+    public static final int MIN_SESSION_MINUTES = 5;
+    public static final int MAX_SESSION_MINUTES = 180;
     public static final int DEFAULT_SESSION_MINUTES = 15;
+    // ---- 每天场次：1 .. 24，默认 3 ----
+    public static final int MIN_SESSIONS = 1;
+    public static final int MAX_SESSIONS = 24;
     public static final int DEFAULT_MAX_SESSIONS = 3;
+    // ---- 周末加场：0（关） .. 24，默认 5 ----
+    public static final int MIN_WEEKEND_EXTRA = 0;
+    public static final int MAX_WEEKEND_EXTRA = 24;
+    public static final int DEFAULT_WEEKEND_EXTRA = 5;
+    // ---- 答题续时：每次 5 分钟 .. 3 小时，默认 5 分钟；每天 1 .. 24 次，默认 2 次 ----
+    public static final int MIN_EXTENSION_MINUTES = 5;
+    public static final int MAX_EXTENSION_MINUTES = 180;
+    public static final int DEFAULT_EXTENSION_MINUTES = 5;
+    public static final int MIN_EXTENSIONS = 1;
+    public static final int MAX_EXTENSIONS = 24;
     public static final int DEFAULT_EXTENSIONS = 2;
-    public static final int EXTENSION_MINUTES = 5;
-    public static final long REST_MS = 10L * 60000L;
+    // ---- 两场之间的休息间隔：5 分钟 .. 12 小时，默认 30 分钟 ----
+    public static final int MIN_REST_MINUTES = 5;
+    public static final int MAX_REST_MINUTES = 12 * 60;
+    public static final int DEFAULT_REST_MINUTES = 30;
+    /** 家长「临时加场」当天能加的上限（与每天场次上限一致，撤回不另设下限 = 0）。 */
+    public static final int MAX_EXTRA_SESSIONS = 24;
 
-    /** 闸门原因：到点 / 不在允许时段。 */
+    /** 闸门原因：到点 / 不在允许时段 / 两场之间的休息间隔。 */
     public static final int GATE_NORMAL = 0;
     public static final int GATE_WINDOW = 1;
+    public static final int GATE_INTERVAL = 2;
 
     public long dayStart;
     /** 本场已累计的视频毫秒。 */
@@ -53,8 +75,13 @@ public final class Budget {
     /** 家长临时加的场次，当天有效。 */
     public int extraSessions;
     public int extensionsPerDay = DEFAULT_EXTENSIONS;
+    /** 每次答题续时的分钟数。 */
+    public int extensionMinutes = DEFAULT_EXTENSION_MINUTES;
     public boolean quizEnabled = true;
-    public boolean weekendBonus = true;
+    /** 周末多开的场次数（0 = 周末不加场）。 */
+    public int weekendExtra = DEFAULT_WEEKEND_EXTRA;
+    /** 两场之间的休息间隔（分钟）。 */
+    public int restIntervalMinutes = DEFAULT_REST_MINUTES;
     public boolean windowEnabled;
     /** 允许时段的分钟数（0..1439）。 */
     public int windowStartMin = 17 * 60;
@@ -83,7 +110,7 @@ public final class Budget {
         extraSessions = 0;
         // 免限卡只管今天：跨天就作废（昨天发的卡不能带过来）
         freePassDay = 0L;
-        maxSessions = effectiveMaxSessions(configuredMaxSessions, weekendBonus, todayStart);
+        maxSessions = effectiveMaxSessions(configuredMaxSessions, weekendExtra, todayStart);
     }
 
     public long limitMs() {
@@ -127,8 +154,17 @@ public final class Budget {
     }
 
     public void onVideo(long deltaMs, long now) {
-        if (deltaMs <= 0L || parentMode || gateOpen) {
+        if (deltaMs <= 0L || parentMode) {
             return;
+        }
+        if (gateOpen) {
+            // 间隔闸门是唯一会「自己到点」的闸门：休息结束就收掉，别把孩子卡在旧状态里
+            if (gateReason == GATE_INTERVAL && !inRest(now)) {
+                gateOpen = false;
+                gateReason = GATE_NORMAL;
+            } else {
+                return;
+            }
         }
         // 免限卡：今天不拦（时段不拦、场次也不拦），只累计时间让宠物知道孩子在看
         if (hasFreePass(now)) {
@@ -136,6 +172,12 @@ public final class Budget {
             return;
         }
         if (sessionsUsed >= maxSessions) {
+            return;
+        }
+        // 两场之间：上一场已经结束，休息间隔没到就不累计，交给拦截页显示倒计时
+        if (inRest(now)) {
+            gateReason = GATE_INTERVAL;
+            gateOpen = true;
             return;
         }
         // 允许时段：只拦「新开的一场」（本场还没累计时间时），不把正在看的动画片掐断
@@ -174,6 +216,7 @@ public final class Budget {
 
     public boolean canQuiz() {
         return quizEnabled && !parentMode && gateReason != GATE_WINDOW
+                && gateReason != GATE_INTERVAL
                 && extensionsToday < extensionsPerDay
                 && sessionsUsed < maxSessions;
     }
@@ -198,7 +241,7 @@ public final class Budget {
         gateOpen = false;
         gateReason = GATE_NORMAL;
         lastWarnLevel = 0;
-        restUntil = now + REST_MS;
+        restUntil = now + restIntervalMinutes * 60000L;
         return true;
     }
 
@@ -210,7 +253,7 @@ public final class Budget {
             return false;
         }
         extensionsToday++;
-        extensionMs += EXTENSION_MINUTES * 60000L;
+        extensionMs += extensionMinutes * 60000L;
         gateOpen = false;
         gateReason = GATE_NORMAL;
         lastWarnLevel = 0;
@@ -227,12 +270,35 @@ public final class Budget {
         gateOpen = false;
         gateReason = GATE_NORMAL;
         lastWarnLevel = 0;
+        restUntil = System.currentTimeMillis() + restIntervalMinutes * 60000L;
     }
 
-    /** 家长临时加一场（当天有效）。 */
-    public void addSession() {
+    /** 家长临时加一场（当天有效）；已到 {@link #MAX_EXTRA_SESSIONS} 时返回 false。 */
+    public boolean addSession() {
+        if (extraSessions >= MAX_EXTRA_SESSIONS) {
+            return false;
+        }
         extraSessions++;
         maxSessions++;
+        return true;
+    }
+
+    /**
+     * 家长撤回一场今天临时加的场次（设置页 ← 键）。
+     *
+     * 三条边界：已经撤到 0 就不再退；撤完不能让上限低于「今天已经用掉的场次」
+     * （用掉的场不能凭空退回来）；只动家长加的临时场，不改基础配置。
+     */
+    public boolean removeSession() {
+        if (extraSessions <= 0) {
+            return false;
+        }
+        if (maxSessions - 1 < sessionsUsed) {
+            return false;
+        }
+        extraSessions--;
+        maxSessions--;
+        return true;
     }
 
     public int sessionsLeft() {
@@ -271,13 +337,32 @@ public final class Budget {
         return c.getTimeInMillis();
     }
 
-    /** 今天有效的场次上限：周末默认 +1，可被家长关掉；再加临时加场。 */
-    public static int effectiveMaxSessions(int configured, boolean weekendBonus, long now) {
-        int n = Math.max(1, configured);
-        if (weekendBonus && isWeekend(now)) {
-            n++;
+    /** 今天有效的场次上限：周末多开 N 场（0 = 不加），再加家长临时加场。 */
+    public static int effectiveMaxSessions(int configured, int weekendExtra, long now) {
+        int n = clamp(configured, MIN_SESSIONS, MAX_SESSIONS);
+        if (isWeekend(now)) {
+            n += clamp(weekendExtra, MIN_WEEKEND_EXTRA, MAX_WEEKEND_EXTRA);
         }
         return n;
+    }
+
+    /** 配置值夹到合法区间；读旧存档/调试广播时用。 */
+    public static int clamp(int value, int min, int max) {
+        return value < min ? min : (value > max ? max : value);
+    }
+
+    /** 分钟数的中文短写法：15 分钟 / 1 小时 / 1 小时 30 分 / 12 小时。 */
+    public static String formatMinutes(int minutes) {
+        int m = Math.max(0, minutes);
+        int h = m / 60;
+        int rest = m % 60;
+        if (h == 0) {
+            return rest + " 分钟";
+        }
+        if (rest == 0) {
+            return h + " 小时";
+        }
+        return h + " 小时 " + rest + " 分";
     }
 
     public static boolean isWeekend(long now) {

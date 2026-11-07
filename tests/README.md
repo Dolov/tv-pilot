@@ -44,7 +44,11 @@ tests/java/
     ├── report/ReportCoreTest.java  # package com.dsh.tvhud.report
     ├── usage/CategoriesTest.java   # 包名/类名 → 视频/音乐/儿童/桌面
     ├── pet/PetCoreTest.java        # 等级/照顾/衰减/场次预算/题库
-    └── pet/PetShopTest.java        # 商店/衣柜/分支/退化/变异/流水/周末/时间窗
+    ├── pet/PetShopTest.java        # 商店/衣柜/分支/退化/变异/流水/周末/时间窗
+    ├── pet/SettingsFactsTest.java  # 家长设置目录摘要 / 今天状态（优先级/进度/时段格式）
+    ├── pet/PinGraceTest.java       # 家长设置 PIN 5 分钟免输窗口（边界/锁定优先）
+    ├── ui/ThemeCoreTest.java       # 主题 token：16 色 × 4 底色对比度 / 缓存 / 字阶圆角
+    └── ui/TapeCoreTest.java        # 带子几何（24h 边界/刻度/游标）+ 4 个 look 与旧外观迁移
 ```
 
 覆盖：`ReportPeriod`（周/月/年边界、ISO 周序号、跨年标签）、`DayAgg`（跨小时切分、裁剪、主类别）、
@@ -54,9 +58,10 @@ tests/java/
 播放记录越界自检）；宠物侧覆盖 `PetEngine`（等级/阶段/照顾/衰减/换牙/每日结算/分支/退化/变异/躲壳）、
 `Budget`（15×3 场次、续时、答题失败、家长时间、周末加场、允许时段）、`QuizBank`（解析/抽题/判分/非法题跳过）、
 `Shop`（买/退/穿/喂/装饰最多 3 个）、`PetJournal`（同日覆盖、保留 14 天、周报汇总）、
+`SettingsFacts`（今天状态优先级、摘要文案、场次倒挂与时段格式）、`PinGrace`（5 分钟免输窗口边界、锁定优先）、
 `Categories`（视频/音乐/儿童/桌面/其他，含 PatchWall 内嵌酷狗插件宿主页）。
 
-**加用例**：在对应 `ReportCoreTest` / `PetCoreTest` 里加一个 `runCase(...)`；测新逻辑时先把它写成不 import Android
+**加用例**：在对应 `ReportCoreTest` / `PetCoreTest` / `PetShopTest` / `SettingsFactsTest` / `PinGraceTest` 里加一个 `runCase(...)`；测新逻辑时先把它写成不 import Android
 的纯函数（参考 `BarStack`、`ReportMath`），否则离线测试编不过。`javac` 不可用时整层 SKIP，
 不影响 `make test` 通过。
 

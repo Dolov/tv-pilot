@@ -269,16 +269,16 @@ public final class ReportCoreTest {
             public void run() {
                 long d = day(2026, 11, 6);
                 String line = "2026:11:06:16:40:45.123 [I] ots: {\"play_status\":1,"
-                        + "\"media_id\":\"123\",\"video_name\":\"套圈记\",\"ci\":36,"
+                        + "\"media_id\":\"123\",\"video_name\":\"示例节目\",\"ci\":36,"
                         + "\"total_ci\":40,\"foo\":\"bar\",\"total_duration\":123456}";
                 PlayEntry e = PlayEntry.parse(line, d, d + UsageDay.DAY_MS);
                 ok("应解析成功", e != null);
                 eq("时刻", at(d, 16, 40) + 45123L, e.ts);
-                eq("片名", "套圈记", e.name);
+                eq("片名", "示例节目", e.name);
                 eq("集数", 36, e.ci);
                 eq("总集数", 40, e.totalCi);
                 eq("单集时长", 123456L, e.durMs);
-                eq("去重键", "套圈记|36", e.key());
+                eq("去重键", "示例节目|36", e.key());
 
                 isNull("非播放行返回 null",
                         PlayEntry.parse("2026:11:06:16:40:45.123 [I] miio_monitor: work time = 1", d,
@@ -462,15 +462,15 @@ public final class ReportCoreTest {
                 near("空归档 → 用待补写的", 40L * 60000L,
                         ArchiveBackfill.totalMs(ArchiveBackfill.mergeSegs(null, pending)));
 
-                PlayEntry a = play("套圈记", 36, at(d, 16, 40));
-                PlayEntry b = play("套圈记", 37, at(d, 16, 42));
-                PlayEntry dup = play("套圈记", 36, at(d, 16, 40));
+                PlayEntry a = play("示例节目", 36, at(d, 16, 40));
+                PlayEntry b = play("示例节目", 37, at(d, 16, 42));
+                PlayEntry dup = play("示例节目", 36, at(d, 16, 40));
                 List<PlayEntry> merged = ArchiveBackfill.mergePlays(
                         new ArrayList<PlayEntry>(java.util.Arrays.asList(a)),
                         new ArrayList<PlayEntry>(java.util.Arrays.asList(dup, b)));
                 eq("同片名同集号只留一条 + 新集数补进来 = 2", 2, merged.size());
-                eq("保留归档原有顺序", "套圈记|36", merged.get(0).key());
-                eq("新记录追加在后面", "套圈记|37", merged.get(1).key());
+                eq("保留归档原有顺序", "示例节目|36", merged.get(0).key());
+                eq("新记录追加在后面", "示例节目|37", merged.get(1).key());
                 eq("空归档只用待补写", 2,
                         ArchiveBackfill.mergePlays(null,
                                 new ArrayList<PlayEntry>(java.util.Arrays.asList(a, b))).size());

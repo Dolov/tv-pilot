@@ -1110,6 +1110,13 @@ public class HudService extends Service {
             }
         }
 
+        // 两场之间的休息间隔到点：闸门自己收掉，孩子不必再按一次
+        if (petBudget.gateOpen && petBudget.gateReason == Budget.GATE_INTERVAL
+                && !petBudget.inRest(System.currentTimeMillis())) {
+            petBudget.gateOpen = false;
+            petBudget.gateReason = Budget.GATE_NORMAL;
+            PetStore.saveBudget(this, petBudget);
+        }
         if (petBudget.gateOpen) {
             hidePetBubble();
             long elapsed = SystemClock.elapsedRealtime();

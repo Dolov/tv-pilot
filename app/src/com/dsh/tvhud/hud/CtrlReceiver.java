@@ -115,6 +115,19 @@ public class CtrlReceiver extends BroadcastReceiver {
             context.startActivity(gate);
             return;
         }
+        if (action.endsWith(".PET_INTERVAL")) {
+            // 调试：模拟「两场之间的休息间隔」闸门，--ei seconds 30 表示 30 秒后放行
+            Budget b = PetStore.loadBudget(context);
+            long seconds = Math.max(1, intent.getIntExtra("seconds", 30));
+            b.restUntil = System.currentTimeMillis() + seconds * 1000L;
+            b.gateOpen = true;
+            b.gateReason = Budget.GATE_INTERVAL;
+            PetStore.saveBudget(context, b);
+            Intent gate = new Intent(context, PetGateActivity.class);
+            gate.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            context.startActivity(gate);
+            return;
+        }
         if (action.endsWith(".PET_PARENT_ON") || action.endsWith(".PET_PARENT_OFF")) {
             boolean on = action.endsWith(".PET_PARENT_ON");
             PetStore.setParentMode(context, on);
@@ -190,7 +203,8 @@ public class CtrlReceiver extends BroadcastReceiver {
             return;
         }
         if (action.endsWith(".PET_WEEKEND_ON") || action.endsWith(".PET_WEEKEND_OFF")) {
-            PetStore.setWeekendBonus(context, action.endsWith(".PET_WEEKEND_ON"));
+            PetStore.setWeekendExtra(context, action.endsWith(".PET_WEEKEND_ON")
+                    ? Budget.DEFAULT_WEEKEND_EXTRA : 0);
             context.startService(new Intent(context, HudService.class));
             return;
         }

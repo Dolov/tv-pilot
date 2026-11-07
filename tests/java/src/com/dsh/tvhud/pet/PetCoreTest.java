@@ -153,15 +153,22 @@ public final class PetCoreTest {
                 check("第二次答题", b.onQuizPass());
                 eq("用掉 2 次", 2, b.extensionsToday);
                 check("不能第三次", !b.canQuiz());
-                b.onRest(now());
+                long t0 = now();
+                b.onRest(t0);
                 eq("休息记 1 场", 1, b.sessionsUsed);
                 eq("本场清零", 0L, b.sessionMs);
                 eq("续时清零", 0L, b.extensionMs);
-
-                b.onVideo(15L * 60000L);
-                b.onRest(now());
-                b.onVideo(15L * 60000L);
-                b.onRest(now());
+                // 默认间隔 30 分钟：跳过休息间隔再开始下一场
+                long t1 = t0 + 31L * 60000L;
+                b.onVideo(14L * 60000L, t1);
+                eq("间隔后可以开始下一场", false, b.gateOpen);
+                eq("间隔后开始累计", 14L * 60000L, b.sessionMs);
+                b.onVideo(60000L, t1);
+                eq("下一场照常到点", true, b.gateOpen);
+                b.onRest(t1);
+                long t2 = t1 + 31L * 60000L;
+                b.onVideo(15L * 60000L, t2);
+                b.onRest(t2);
                 eq("3 场用完", true, b.isFinished());
                 eq("剩余场次 0", 0, b.sessionsLeft());
                 b.onVideo(15L * 60000L);
@@ -174,7 +181,8 @@ public final class PetCoreTest {
             public void run() {
                 Budget b = new Budget();
                 b.dayStart = dayStart();
-                b.onVideo(15L * 60000L);
+                long t0 = now();
+                b.onVideo(15L * 60000L, t0);
                 b.onQuizFail();
                 eq("失败记 1 场", 1, b.sessionsUsed);
                 eq("本场清零", 0L, b.sessionMs);
@@ -183,8 +191,66 @@ public final class PetCoreTest {
                 eq("家长时间不计数", 0L, b.sessionMs);
                 eq("家长时间不开闸", false, b.gateOpen);
                 b.parentMode = false;
-                b.onVideo(15L * 60000L);
+                b.onVideo(15L * 60000L, t0 + 31L * 60000L);
                 eq("恢复后正常到点", true, b.gateOpen);
+            }
+        });
+
+        runCase("两场间隔：默认 30 分钟；期间继续看会被拦，到点恢复", new Body() {
+            @Override
+            public void run() {
+                Budget b = new Budget();
+                b.dayStart = dayStart();
+                long t0 = now();
+                b.sessionMinutes = 5;
+                b.onVideo(5L * 60000L, t0);
+                eq("5 分钟到点", true, b.gateOpen);
+                b.onRest(t0);
+                check("休息中", b.inRest(t0 + 1000L));
+                // 间隔内继续看视频：不累计，开间隔闸门
+                b.onVideo(1000L, t0 + 1000L);
+                eq("间隔内被拦", true, b.gateOpen);
+                eq("闸门原因是间隔", Budget.GATE_INTERVAL, b.gateReason);
+                eq("间隔内不累计", 0L, b.sessionMs);
+                check("间隔内不能答题", !b.canQuiz());
+                // 间隔过了：正常开始下一场
+                b.onVideo(1000L, t0 + 31L * 60000L);
+                eq("间隔后放行", false, b.gateOpen);
+                eq("开始累计", 1000L, b.sessionMs);
+
+                // 间隔长度可配置
+                Budget c = new Budget();
+                c.dayStart = dayStart();
+                c.restIntervalMinutes = 5;
+                long t1 = now();
+                c.onVideo(5L * 60000L, t1);
+                c.onRest(t1);
+                c.onVideo(1000L, t1 + 6L * 60000L);
+                eq("5 分钟间隔后放行", false, c.gateOpen);
+                eq("5 分钟间隔后累计", 1000L, c.sessionMs);
+            }
+        });
+
+        runCase("续时配置：每次 30 分钟、每天 3 次；可只按配置加时", new Body() {
+            @Override
+            public void run() {
+                Budget b = new Budget();
+                b.dayStart = dayStart();
+                b.sessionMinutes = 5;
+                b.extensionMinutes = 30;
+                b.extensionsPerDay = 3;
+                long t0 = now();
+                b.onVideo(5L * 60000L, t0);
+                eq("5 分钟到点", true, b.gateOpen);
+                check("可以答题", b.canQuiz());
+                check("答题通过", b.onQuizPass());
+                eq("按配置加 30 分钟", 30L * 60000L, b.extensionMs);
+                b.onVideo(30L * 60000L, t0 + 1L);
+                eq("续时用完后再次到点", true, b.gateOpen);
+                check("第二次答题", b.onQuizPass());
+                check("第三次答题", b.onQuizPass());
+                eq("用掉 3 次", 3, b.extensionsToday);
+                check("不能第四次", !b.canQuiz());
             }
         });
 

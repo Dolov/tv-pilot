@@ -1,6 +1,6 @@
 # tv-pilot 视觉系统（v2 提案）
 
-状态：**设计提案，未实现** · 适用版本：v1.24+ · 相关页面：首页 / 使用记录 / 使用报告 / 电子宠物 / 屏保角标
+状态：**主题系统已落地（v1.28）**，宠物房间/拦截页仍保留 story 语气 · 适用版本：v1.24+ · 相关页面：首页 / 使用记录 / 使用报告 / 家长设置 / 电子宠物 / 屏保角标
 
 本文回答两个问题：
 
@@ -50,9 +50,8 @@
 | 宠物 `Pet*` | 儿童玩具：夜空、大圆角、暖黄反色 | `#0b0f1a` | 12–28dp + pill | 暖黄实底 + 白 3dp 环（另有 3 种变体） | 13–40dp |
 | 屏保角标 `HudView` | 悬浮仪表：白字 + 黑投影 | 透明覆盖 | 0 | 无 | 14–34dp |
 
-截图证据：`.build/pet-shots/`（真机）、`.build/design/impl-*.png`（v1.13）。方向稿见
-[`design/home.png`](design/home.png)、[`design/report.png`](design/report.png)、
-[`design/system.png`](design/system.png)。
+截图证据：`.build/pet-shots/`（真机）、`.build/design/impl-*.png`（v1.13）。方向稿已随实现落地
+退役（§附录 B），当前外观以 `app/src/com/dsh/tvhud/ui/` 的 token 为准。
 
 ### 1.2 颜色：413 个字面量、4 种底色、无 token 层
 
@@ -196,22 +195,18 @@ $ grep -rhoE "0x[0-9A-Fa-f]{8}" app/src | wc -l
 4. **用发丝线分层，不用阴影和大面积渐变。** 电视 8bit 面板会色带，3 米外阴影也看不见。
 5. **焦点永远带几何。** 脊 / 环 / 下划线三选一，不允许「只变色」。
 
-### 2.6 方向稿
+### 2.6 方向稿（已退役）
 
-首页（台账语气 + 首页眉标下的 Day Tape）：
+首页（台账语气；2026-11-07 按产品要求保持纯台账，不在菜单顶部放时间轴）、
+报告（同一底座，去掉发光，青→灯，数据色保留）、
+系统板（灯、表面、字阶、带子、焦点、语气）——
+这三份方向稿连同 `docs/design/app.css` 一并已从仓库删除：主题系统落地后
+（§9 / §10），方向稿只作为历史提案，实际外观以 `app/src/com/dsh/tvhud/ui/` 的 token
+与真机截图为准。
 
-![首页方向稿](design/home.png)
-
-报告（同一底座，去掉发光，青→灯，数据色保留）：
-
-![报告方向稿](design/report.png)
-
-系统板（灯、表面、字阶、带子、焦点、语气）：
-
-![系统板](design/system.png)
-
-> 方向稿是 1920×1080 的 HTML/CSS 渲染，字体用 PingFang / DIN Alternate 近似 App 里的
-> MILanPro / DIN Pro，**不是实现截图**；源码在同目录 `home.html` / `report.html` / `system.html`。
+> 方向稿曾是 1920×1080 的 HTML/CSS 渲染，字体用 PingFang / DIN Alternate 近似 App 里的
+> MILanPro / DIN Pro，**不是实现截图**。删除它们是为了不再维护两套会漂移的视觉描述；
+> 需要回看历史提案见 git 历史（`git log --diff-filter=D -- docs/design/`）。
 
 ### 2.7 被否掉的方案
 
@@ -370,8 +365,7 @@ component（组件默认值）     Row.focus = lampWash + spine(lamp)
 | `indigo` | 靛夜 | `#0F1020` | `#181A30` | `#20233D` | `#2B2F4C` | `#F2F0FA` | `#C2C2DA` | `#9A9BB6` | 影院感 / 夜间 |
 | `black` | 纯黑 | `#000000` | `#0C0C0C` | `#141414` | `#262626` | `#F2F2EE` | `#BFBFB8` | `#93938C` | OLED / 想省电 |
 
-色系与灯是正交的：**4 色系 × 4 灯 = 16 个组合**，全部可配置。方向板见
-[`design/schemes.png`](design/schemes.png)。
+色系与灯是正交的：**4 色系 × 4 灯 = 16 个组合**，全部可配置（实现见 `app/src/com/dsh/tvhud/ui/Scheme.java`）。
 
 规则：
 
@@ -675,15 +669,20 @@ registerReceiver(new BroadcastReceiver() {
 text `#F7F3EA`、text2 `#C3C9D8`、text3 `#A9B0C2`、lamp `#FFD98A`、onLamp `#141020`；
 圆角 22/28，焦点实底 + 白环，字号 16–40。
 
-## 附录 B · 方向稿文件
+## 附录 B · 视觉资料（方向稿已退役）
 
-| 文件 | 说明 |
+方向稿（`docs/design/*.html`、`docs/design/app.css`）与主题渲染工具
+（`tools/theme-preview/`）已随主题系统落地一并删除：它们描述的是实现前的提案，
+继续留着只会和 `app/src/com/dsh/tvhud/ui/` 的真实 token 漂移。
+
+当前视觉资料以这些为准：
+
+| 来源 | 说明 |
 |---|---|
-| [`design/system.html`](design/system.html) / `.png` | 系统板：灯、表面、字阶、带子、焦点、语气、数据色 |
-| [`design/home.html`](design/home.html) / `.png` | 首页方向稿（Day Tape + 台账菜单） |
-| [`design/report.html`](design/report.html) / `.png` | 周报方向稿（去发光、灯色强调、数据色保留） |
-| [`design/schemes.html`](design/schemes.html) / `.png` | 色系板：4 底色系 × 4 灯、配置面板、16 组合断言 |
-| [`design/app.css`](design/app.css) | 两套 tone 的 token 与组件样式 |
+| `app/src/com/dsh/tvhud/ui/` | 主题 token 的唯一来源：`Theme` / `Palette` / `Looks` / `Scheme` / `Accent` / `Tape` |
+| `docs/design-system.md` §9 / §10 | 主题系统的落地记录：16 色 → 4 房间的收窄理由、接入范围、验证结果 |
+| `.build/screenshots/` | 真机截图（不入库） |
+| git 历史 | 历史方向稿：`git log --diff-filter=D -- docs/design/` 可取回被删文件 |
 
 ## 附录 C · 命名与文案
 
@@ -700,9 +699,148 @@ text `#F7F3EA`、text2 `#C3C9D8`、text3 `#A9B0C2`、lamp `#FFD98A`、onLamp `#1
 
 ---
 
+## 9. 实现状态（v2.1，2026-11-07）
+
+已落地在 `app/src/com/dsh/tvhud/ui/`：
+
+| 文件 | 内容 |
+|---|---|
+| `Accent.java` | 16 个主题色（暖白/冷白/饱和/深色四组） |
+| `Scheme.java` | 8 套暗室材质：仪表（默认）/ 账本 / 影院 / 纸光 / 暗色 / 暮紫 / 森林 / 日落 |
+| `Palette.java` | 语义色板；`onLamp` 自动取对比度；数据类别色固定（视频 #F43098 / 音乐 #00D3BB，不随主题变） |
+| `Metrics.java` | 字阶、间距、圆角、焦点几何（按材质） |
+| `Theme.java` / `Themes.java` | 4 × 16 = 64 个不可变主题，启动时一次算好 |
+| `Contrast.java` | WCAG 对比度 + `on()` 推导，纯 Java |
+| `ThemeStore.java` | `theme_scheme` / `theme_accent` / `theme_rev` |
+| `Ui.java` | dp/字体/文本/圆角/发丝线，收掉各页重复 helper |
+| `Overlay.java` | 屏保角标固定 token（不跟主题） |
+| `ThemePreviewActivity.java` | 真机外观预览：←→ 同排 / ↑↓ 换排选 8 个 look、OK 保存（v3 见 §10，v3.1 见 §11） |
+
+接入与入口：
+
+- 首页已接 `ThemeStore`：启动读主题，`onResume` 比对 revision，变了才重建；首页标题「使用台账」已移除，菜单 4 项居中；
+- 外观入口收进 **家长设置 → 05 外观**（PIN 保护，直接打开全屏选择）；也可
+  `adb shell am start -n com.dsh.tvhud/.ui.ThemePreviewActivity`；
+- 默认 = `dashboard.signal`（保留现状报告页的仪表材质 + 信号青；v3 起叫「夜班」），首页焦点随之变为信号青；
+- 使用记录 **已接入（v3，见 §10）**；报告 **已接入**；家长设置页 **已接入（v1.28）**，
+  整页跟「外观」换肤；宠物房间与到点拦截页保留童趣语气（story），不跟主题换色。
+
+验证结果：
+
+- `tests/java` 新增 `ThemeCoreTest`：8 用例 / **538 条断言**（16 色 × 4 底全部 ≥ 4.5、onLamp 推导、缓存唯一、字阶与圆角）；
+- `make check` 9 PASS；`make test` 6 PASS；`make apk` 通过（283,734 bytes）；
+- 64 主题查找基准：1,000,000 次 **22ms**（约 22ns/次，纯缓存、无分配）；
+- 视觉验证：用真实 `Theme` 数据渲染 4 材质 + 16 主题色的主题矩阵
+  （当时的 `tools/theme-preview/run.sh`，输出到 `.build/design/theme-matrix.png`，不入库；
+  该工具已随方向稿一并退役，见附录 B）；
+- **真机验证**：安装在 MiTV-NSOP0（SDK 28）上，用遥控器实际切换 4 材质 × 多主题色并保存，
+  首页按新主题重建；截图见 `.build/screenshots/`（不入库）。
+- **帧率**：预览屏连续切换 20 帧，`dumpsys gfxinfo` 显示 p50 10ms / p90 14ms / 99th 17ms，
+  Missed Vsync 0；onDraw 无字符串拼接与对比度计算。
+
+与本文此前的差异：§3.3 的 4 个灯扩展为 **16 个主题色**；§3.10 的「色系」即现在的 `Scheme`，且默认材质是 **仪表 Dashboard**（不是账本）。
+
+---
+
+## 10. v3 执行：64 个组合 → 4 个房间，一条带子（2026-11-07）
+
+### 10.1 为什么收窄
+
+- **3 米外不可辨**：16 个主题色里月白 / 象牙 / 米白 / 霜白在 1080p、3 米沙发上几乎是同一个白；
+  这是设置页的玩具，不是观感差异（当时的 `tools/theme-preview/run.sh` 渲染的主题矩阵）。
+- **组合成本**：每多一个组合，就要在带子 / 报告 / 宠物上各验一遍；64 组合 = 把迁移成本乘 64。
+- **方向本就是 4 灯**：原方向稿写的是「主题色 = 客厅里留的那盏灯，四选一」，
+  落地时扩成了 16 色（§9 末尾已记录）。v3 把它收回来。
+- **主题没有载体**：带子（Day Tape）是 P4，皮肤铺开是 P0–P3；先有皮肤、没有签名，
+  换主题时用户只看到首页变、别处没变。
+
+### 10.2 落地内容
+
+| 文件 | 内容 |
+|---|---|
+| `ui/Looks.java` | 8 个精选外观：夜班（仪表·信号青）/ 暖房（纸光·琥珀）/ 影院（影院·冰蓝）/ 账本（账本·月白）/ 暗色（近黑·素白）/ 暮紫（紫黑·紫晶）/ 森林（墨绿·薄荷）/ 日落（酒黑·珊瑚）；`Looks.Look` 自带 `theme` / `palette()`；旧 scheme/accent 用 `fromLegacy()` 无损迁移 |
+| `ui/ThemeStore.java` | 只存 `theme_look` + `theme_rev`；旧 `theme_scheme` / `theme_accent` 只读迁移；`look()` / `setLook()` / `rev()` |
+| `ui/Palette.java` | 新增带子 token：`tapeTrack` / `tapeRule` / `tapeTick` / `tapeLabel` / `tapeNow`（= 灯） |
+| `ui/Tape.java` | 24 小时 → 像素的纯几何（fraction / xAt / hourX / isMajorHour / hasNow / segStart / segEnd），无 Android 依赖，可离线单测 |
+| `ui/TapeView.java` | 带子的 Android 绘制；`COMPACT`（首页 4dp 无刻度）/ `STANDARD`（使用记录 10dp + 刻度） |
+| `home/HomeActivity.java` | 首页保持纯台账；带子只在「使用记录」页（产品决定：菜单顶部不放时间轴） |
+| `usage/MainActivity.java` | 6 个 `COL_*` 换成 `Palette`；私有 `TimelineView` 删除，改用 `TapeView.STANDARD`；`onResume` 比对 revision 后重建 |
+| `report/ReportCanvasView.java` + 周/月/年 + `ReportsActivity` | `C_*` 静态色改成 `Palette` 实例 token（`reportInk/reportText/...` + `lamp` + 数据类别色）；删掉构造期与每帧的径向光晕，只留极淡工程网格；Activity 读 look + revision 重建 |
+| `ui/ThemePreviewActivity.java` | v3 时从「4 材质 × 16 色」网格改为 4 个房间选择 + 首页样张 + 带子；v3.1 重做为「左首页样张 + 右 4 × 2 漆片」，见 §11 |
+| `pet/PetSettingsActivity.java` | 家长设置页整页接入 `Palette`：底色/文字/面板抬色、灯色实底焦点 + `onLamp` 反白字、24 小时时段带用 `tapeTrack`/`lamp`；`showPin/showMenu/showPage` 先取 look，换外观后 `onResume` 重建即跟随；外观摘要显示 look 名（如「夜班」） |
+| `scripts/check.sh` | 主题守卫：已迁移的 `home/` / `usage/` / `report/`（`Categories.java` 除外）与 `pet/PetSettingsActivity.java` 禁止颜色字面量（含 `Color.argb/rgb`）；全仓字面量预算只降不升（406 → 263） |
+
+### 10.3 验证
+
+- `tests/java` 新增 `TapeCoreTest`：7 用例 / 90 条断言（24h 边界夹紧、刻度规则、游标出现条件、
+  数据段两端夹紧、look 覆盖材质与唯一 id、旧 scheme/accent 迁移、带子 token 派生与对比度；v3.1 起扩到 8 个 look）。
+- `make check && make test` 全过（见 PR 记录）；`make apk` 编译通过。
+- 视觉验证：用 Java2D 与真实 token 渲染房间 + 带子四尺度
+  （当时的 `tools/theme-preview/run-looks.sh`，输出到 `.build/design/looks-v3.png`，不入库；
+  v3.1 起为 8 个房间，方向板未重新生成；
+  不需要电视；该工具已随方向稿一并退役，见附录 B）。注意：方向板里的首页带子是 v3 提案，
+  2026-11-07 产品决定移除，实际只保留「使用记录」页的带子（见 §10.2 的 home 行）。
+- 真机（MiTV-NSOP0，2026-11-07）：安装后验证「夜班 / 暖房」切换，首页、使用记录、周/月/年报告
+  三页全部跟随 look（截图在 `.build/screenshots/`，不入库）。家长设置页随后补接入（v1.28）：
+  夜班 / 暖房 / 影院 / 账本四个 look 在真机上逐一切换核对——页面底色、面板抬色、灯色焦点、
+  时段带与文字全部跟随，设置页不再是「宠物深蓝 + 暖黄」固定皮肤；`tests/e2e/report-smoke.sh --no-install`
+  **PASS 13 / FAIL 0**（三粒度各加载一次、无不变量告警、无崩溃、返回首页）；
+  `make regression` **PASS 40 / FAIL 0**（首页 / 使用记录 / 报告三页 / 宠物四分区 / 家长设置二级菜单 /
+  屏保服务 + 归档自洽 149 段）。
+
+### 10.4 还没接的（按下一步优先级）
+
+1. **宠物区**接 story 语气：`PetUi` 的 20 个 token 合并进主题（灯不跟皮肤变，房间表面跟 look 变）；
+   宠物生长条用同一套 `Tape` 几何。家长设置页已先行接入（配置面跟 look），宠物房间 / 商店 / 拦截页
+   仍用固定 story 语气。
+2. **HUD 角标**改吃 `ui/Overlay.java` token（现在 `HudView` 仍自带 7 个字面量）；角标按设计不跟主题。
+3. **报告周期条**（多期柱状）与 `TapeView` 的 24h 形态不是一回事：本轮只做了颜色接入，没有改数据形态；
+   若要把「四屏同构」做到字面一致，需要另做设计。
+4. **换 look 的「灯亮起来」过渡**（约 400ms，尊重 reduced motion）——这是让换主题在 3 米外可感知的关键。
+5. 真机截图进 `tests/e2e` 基线：4 个 look × 首页 / 使用记录 / 周月年报告。
+
+---
+
 ## 附：参考的既有实现与约束
 
 - 构建：`bash app/build.sh`（无 Gradle，javac + d8 + aapt2）；主题改动必须能通过同一构建。
 - 业务模型：`UsageDay.Seg`（24h 分段）、`Categories`（5 类）、`Report`（周期聚合）、`PetState`（成长/场次）。
 - 测试三层：`tests/java`（纯 Java）、`tests/e2e`（真机）、`scripts/check.sh`（仓库自检）。
 - 电视安全区：48dp（1080p 下 96px），已满足 5% overscan。
+
+---
+
+## 11. v3.1：8 个暗室 + 样板式外观页（2026-11-08）
+
+### 11.1 为什么
+
+- **电视是发光的**：界面不跟画面抢亮度，所以八个 look 全部是暗室。先加过的「亮色 / light」
+  已删除——白底在客厅电视上刺眼，家长试用后直接否掉。
+- **差异化要能一眼看出来**：只换主色不够，v3.1 把三条轴一起拉开：
+  - **色温**：蓝黑 / 暖棕 / 纯黑 / 石墨 / 近黑 / 紫黑 / 墨绿 / 酒黑；
+  - **几何**：面板圆角 0（影院）/ 3（账本）/ 4（暗色）/ 6（夜班）/ 10（暮紫）/ 12（日落）/ 16（暖房）/ 20 dp（森林）；
+  - **辅色**：每套材质自带第二只灯（暮蓝 / 陶土 / 钢灰 / 鼠尾草 / 石墨 / 霓虹青 / 麦穗 / 杏黄）。
+- 新增三套：**暗色**（近黑 + 素白 + 石墨，经典 neutral）、**暮紫**（紫黑 + 紫晶 + 霓虹青）、
+  **森林**（墨绿 + 薄荷 + 麦穗，20dp 最柔）、**日落**（酒黑 + 珊瑚 + 杏黄）。
+- **数据类别色保持固定，不跟主题变**：视频 `#F43098` / 音乐 `#00D3BB` / 儿童 / 系统 / 其他
+  仍是用户指定的那一套；换成任何 look 这两条颜色都不动，家长才认得出内容类型
+  （一度试过让类别色跟材质走，试完按用户要求改回固定）。
+
+### 11.2 落地
+
+| 位置 | 内容 |
+|---|---|
+| `ui/Scheme.java` | 8 套暗室材质；新增 `secondary` / `secondaryName`；圆角拉开到 0–20dp |
+| `ui/Palette.java` | 新增 `secondary` / `secondaryWash` / `onSecondary` / `rowRadius`（由面板圆角派生）、`light` 标记（保留给将来，当前无亮底材质）；数据类别色保持固定 |
+| `ui/Accent.java` | 新增「素白」（经典 dark 的灯是白的）；共 17 个主题色 |
+| `pet/PetSettingsActivity.java` | 面板 / 行 / 输入格的圆角改读 `panelRadius` / `rowRadius`；「今天」状态条改用辅色，主色只留给焦点 |
+| `ui/ThemePreviewActivity.java` | 重做：左上角一行小字「主题配置」（15dp），左栏是**和右栏等高的首页样张**——本周周报条（总时长 / 日均 / 七天节奏 / 分类构成）+ 四行菜单（第一行焦点），全部用当前 look 的真实 token 现场画，数据取本周真实归档 + 今日实时快照；右栏 4 × 2 块漆片，每块从上到下是「名字 14dp → 主色/辅色两块 36dp 小色卡（圆角 = 材质圆角）→ 可折两行的 10dp 描述」，用自己的底色 / 文字 / 圆角渲染，选中用主色描边 + 底条；Canvas 走软件绘制，避免电视 GPU 留字模残影。←→ ↑↓ 双向循环，OK 保存、返回退出 |
+
+### 11.3 验证
+
+- `ThemeCoreTest`：8 材质 × 17 色 = 136 组合缓存唯一；八个 look 的底色相对亮度 < 0.1（不允许亮底）；
+  辅色互不重复、`onSecondary` 对比度 ≥ 3、圆角 0–20 且行圆角 ≤ 面板圆角；`onLamp` 全组合 ≥ 4.5。
+- `TapeCoreTest`：8 个 look 覆盖 8 套材质、id 唯一、旧 scheme/accent 迁移（含 dark / forest）。
+- 真机（MiTV-NSOP0，2026-11-08）：八套 look 逐一切换，外观页样张 / 四行菜单 / 焦点色脊 / 圆角同时变；整页只有左上角小字「主题配置」和两栏内容，没有键位说明和页脚；周报摘要显示的是当前周的真实数据（本周 3h 18m · 日均 28m · 记录 4 天）；
+  保存后首页、使用记录、报告、家长设置一起跟随（森林、日落实拍在 `.build/theme-v4/`，不入库）；
+  `make regression` PASS 40 / FAIL 0。

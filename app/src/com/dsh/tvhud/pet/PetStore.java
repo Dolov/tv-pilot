@@ -69,6 +69,8 @@ public final class PetStore {
     private static final String K_EXTRA_SESSIONS = "extra_sessions";
     private static final String K_GATE_OPEN = "gate_open";
     private static final String K_GATE_REASON = "gate_reason";
+    /** 两场之间的休息截止时间（wall-clock 毫秒）。 */
+    private static final String K_REST_UNTIL = "rest_until";
     private static final String K_PARENT_MODE = "parent_mode";
     /** 家长发的「今天免限卡」：存的是发卡那天的 0 点时间戳，跨天自动失效。 */
     private static final String K_FREE_PASS_DAY = "free_pass_day";
@@ -77,7 +79,9 @@ public final class PetStore {
     private static final String K_CFG_MAX_SESSIONS = "cfg_max_sessions";
     private static final String K_CFG_QUIZ = "cfg_quiz_enabled";
     private static final String K_CFG_EXTENSIONS = "cfg_extensions";
-    private static final String K_CFG_WEEKEND = "cfg_weekend_bonus";
+    private static final String K_CFG_EXT_MINUTES = "cfg_extension_minutes";
+    private static final String K_CFG_WEEKEND_EXTRA = "cfg_weekend_extra";
+    private static final String K_CFG_REST_MINUTES = "cfg_rest_minutes";
     private static final String K_CFG_DEGRADE = "cfg_degrade";
     private static final String K_CFG_GENTLE = "cfg_gentle";
     private static final String K_CFG_WINDOW_ON = "cfg_window_on";
@@ -294,16 +298,18 @@ public final class PetStore {
         b.sessionsUsed = sp.getInt(K_SESSIONS_USED, 0);
         b.extensionsToday = sp.getInt(K_EXT_TODAY, 0);
         b.extensionMs = sp.getLong(K_EXT_MS, 0L);
-        b.extraSessions = sp.getInt(K_EXTRA_SESSIONS, 0);
+        b.extraSessions = Budget.clamp(sp.getInt(K_EXTRA_SESSIONS, 0), 0,
+                Budget.MAX_EXTRA_SESSIONS);
         b.gateOpen = sp.getBoolean(K_GATE_OPEN, false);
         b.gateReason = sp.getInt(K_GATE_REASON, Budget.GATE_NORMAL);
+        b.restUntil = sp.getLong(K_REST_UNTIL, 0L);
         b.parentMode = sp.getBoolean(K_PARENT_MODE, false);
         // 免限卡是「家长设置」而不是「当天预算」：它有自己的 key，
         // saveBudget 不会写它，也就不会被旧的内存状态覆盖掉。
         b.freePassDay = sp.getLong(K_FREE_PASS_DAY, 0L);
         readConfig(ctx, b);
         long refDay = b.dayStart > 0L ? b.dayStart : System.currentTimeMillis();
-        b.maxSessions = Budget.effectiveMaxSessions(b.configuredMaxSessions, b.weekendBonus, refDay)
+        b.maxSessions = Budget.effectiveMaxSessions(b.configuredMaxSessions, b.weekendExtra, refDay)
                 + b.extraSessions;
         return b;
     }
@@ -318,6 +324,7 @@ public final class PetStore {
         e.putInt(K_EXTRA_SESSIONS, b.extraSessions);
         e.putBoolean(K_GATE_OPEN, b.gateOpen);
         e.putInt(K_GATE_REASON, b.gateReason);
+        e.putLong(K_REST_UNTIL, b.restUntil);
         e.putBoolean(K_PARENT_MODE, b.parentMode);
         e.apply();
         sVersion++;
@@ -331,7 +338,7 @@ public final class PetStore {
     /** 把家长配置灌进内存里的 Budget；跨天/改配置后调一次。 */
     public static void applyConfig(Context ctx, Budget b, long refDay) {
         readConfig(ctx, b);
-        b.maxSessions = Budget.effectiveMaxSessions(b.configuredMaxSessions, b.weekendBonus, refDay)
+        b.maxSessions = Budget.effectiveMaxSessions(b.configuredMaxSessions, b.weekendExtra, refDay)
                 + b.extraSessions;
         if (b.maxSessions < b.sessionsUsed) {
             b.maxSessions = b.sessionsUsed;
@@ -340,11 +347,20 @@ public final class PetStore {
 
     private static void readConfig(Context ctx, Budget b) {
         SharedPreferences sp = ctx.getSharedPreferences(PREFS, 0);
-        b.sessionMinutes = sp.getInt(K_CFG_SESSION_MIN, Budget.DEFAULT_SESSION_MINUTES);
-        b.configuredMaxSessions = sp.getInt(K_CFG_MAX_SESSIONS, Budget.DEFAULT_MAX_SESSIONS);
+        b.sessionMinutes = Budget.clamp(sp.getInt(K_CFG_SESSION_MIN, Budget.DEFAULT_SESSION_MINUTES),
+                Budget.MIN_SESSION_MINUTES, Budget.MAX_SESSION_MINUTES);
+        b.configuredMaxSessions = Budget.clamp(sp.getInt(K_CFG_MAX_SESSIONS,
+                Budget.DEFAULT_MAX_SESSIONS), Budget.MIN_SESSIONS, Budget.MAX_SESSIONS);
         b.quizEnabled = sp.getBoolean(K_CFG_QUIZ, true);
-        b.extensionsPerDay = sp.getInt(K_CFG_EXTENSIONS, Budget.DEFAULT_EXTENSIONS);
-        b.weekendBonus = sp.getBoolean(K_CFG_WEEKEND, true);
+        b.extensionsPerDay = Budget.clamp(sp.getInt(K_CFG_EXTENSIONS, Budget.DEFAULT_EXTENSIONS),
+                Budget.MIN_EXTENSIONS, Budget.MAX_EXTENSIONS);
+        b.extensionMinutes = Budget.clamp(sp.getInt(K_CFG_EXT_MINUTES,
+                Budget.DEFAULT_EXTENSION_MINUTES), Budget.MIN_EXTENSION_MINUTES,
+                Budget.MAX_EXTENSION_MINUTES);
+        b.weekendExtra = Budget.clamp(sp.getInt(K_CFG_WEEKEND_EXTRA,
+                Budget.DEFAULT_WEEKEND_EXTRA), Budget.MIN_WEEKEND_EXTRA, Budget.MAX_WEEKEND_EXTRA);
+        b.restIntervalMinutes = Budget.clamp(sp.getInt(K_CFG_REST_MINUTES,
+                Budget.DEFAULT_REST_MINUTES), Budget.MIN_REST_MINUTES, Budget.MAX_REST_MINUTES);
         b.windowEnabled = sp.getBoolean(K_CFG_WINDOW_ON, false);
         b.windowStartMin = sp.getInt(K_CFG_WINDOW_START, 17 * 60);
         b.windowEndMin = sp.getInt(K_CFG_WINDOW_END, 20 * 60);
@@ -359,7 +375,8 @@ public final class PetStore {
 
     public static void setSessionMinutes(Context ctx, int minutes) {
         ctx.getSharedPreferences(PREFS, 0).edit()
-                .putInt(K_CFG_SESSION_MIN, Math.max(10, Math.min(20, minutes))).apply();
+                .putInt(K_CFG_SESSION_MIN, Budget.clamp(minutes,
+                        Budget.MIN_SESSION_MINUTES, Budget.MAX_SESSION_MINUTES)).apply();
         sVersion++;
     }
 
@@ -370,7 +387,8 @@ public final class PetStore {
 
     public static void setMaxSessions(Context ctx, int n) {
         ctx.getSharedPreferences(PREFS, 0).edit()
-                .putInt(K_CFG_MAX_SESSIONS, Math.max(1, Math.min(5, n))).apply();
+                .putInt(K_CFG_MAX_SESSIONS, Budget.clamp(n,
+                        Budget.MIN_SESSIONS, Budget.MAX_SESSIONS)).apply();
         sVersion++;
     }
 
@@ -390,16 +408,50 @@ public final class PetStore {
 
     public static void setExtensionsPerDay(Context ctx, int n) {
         ctx.getSharedPreferences(PREFS, 0).edit()
-                .putInt(K_CFG_EXTENSIONS, Math.max(0, Math.min(3, n))).apply();
+                .putInt(K_CFG_EXTENSIONS, Budget.clamp(n,
+                        Budget.MIN_EXTENSIONS, Budget.MAX_EXTENSIONS)).apply();
         sVersion++;
     }
 
-    public static boolean weekendBonus(Context ctx) {
-        return ctx.getSharedPreferences(PREFS, 0).getBoolean(K_CFG_WEEKEND, true);
+    /** 每次答题续时的分钟数。 */
+    public static int extensionMinutes(Context ctx) {
+        return Budget.clamp(ctx.getSharedPreferences(PREFS, 0)
+                        .getInt(K_CFG_EXT_MINUTES, Budget.DEFAULT_EXTENSION_MINUTES),
+                Budget.MIN_EXTENSION_MINUTES, Budget.MAX_EXTENSION_MINUTES);
     }
 
-    public static void setWeekendBonus(Context ctx, boolean on) {
-        ctx.getSharedPreferences(PREFS, 0).edit().putBoolean(K_CFG_WEEKEND, on).apply();
+    public static void setExtensionMinutes(Context ctx, int minutes) {
+        ctx.getSharedPreferences(PREFS, 0).edit()
+                .putInt(K_CFG_EXT_MINUTES, Budget.clamp(minutes,
+                        Budget.MIN_EXTENSION_MINUTES, Budget.MAX_EXTENSION_MINUTES)).apply();
+        sVersion++;
+    }
+
+    /** 周末多开几场（0 = 不加场）。 */
+    public static int weekendExtra(Context ctx) {
+        return Budget.clamp(ctx.getSharedPreferences(PREFS, 0)
+                        .getInt(K_CFG_WEEKEND_EXTRA, Budget.DEFAULT_WEEKEND_EXTRA),
+                Budget.MIN_WEEKEND_EXTRA, Budget.MAX_WEEKEND_EXTRA);
+    }
+
+    public static void setWeekendExtra(Context ctx, int n) {
+        ctx.getSharedPreferences(PREFS, 0).edit()
+                .putInt(K_CFG_WEEKEND_EXTRA, Budget.clamp(n,
+                        Budget.MIN_WEEKEND_EXTRA, Budget.MAX_WEEKEND_EXTRA)).apply();
+        sVersion++;
+    }
+
+    /** 两场之间的休息间隔（分钟）。 */
+    public static int restIntervalMinutes(Context ctx) {
+        return Budget.clamp(ctx.getSharedPreferences(PREFS, 0)
+                        .getInt(K_CFG_REST_MINUTES, Budget.DEFAULT_REST_MINUTES),
+                Budget.MIN_REST_MINUTES, Budget.MAX_REST_MINUTES);
+    }
+
+    public static void setRestIntervalMinutes(Context ctx, int minutes) {
+        ctx.getSharedPreferences(PREFS, 0).edit()
+                .putInt(K_CFG_REST_MINUTES, Budget.clamp(minutes,
+                        Budget.MIN_REST_MINUTES, Budget.MAX_REST_MINUTES)).apply();
         sVersion++;
     }
 

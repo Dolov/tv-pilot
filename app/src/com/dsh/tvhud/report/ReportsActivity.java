@@ -1,6 +1,8 @@
 package com.dsh.tvhud.report;
 
 import com.dsh.tvhud.hud.HudService;
+import com.dsh.tvhud.ui.Palette;
+import com.dsh.tvhud.ui.ThemeStore;
 import com.dsh.tvhud.usage.UsageDay;
 
 import android.app.Activity;
@@ -29,6 +31,9 @@ public final class ReportsActivity extends Activity {
     private static final String PREF_PERIOD = "report_period";
 
     private SharedPreferences prefs;
+    /** 当前外观；onResume 比对 revision，变了才重建。 */
+    private Palette palette;
+    private int themeRev;
     private FrameLayout root;
     private ReportCanvasView view;
     private ReportPeriod period = ReportPeriod.WEEK;
@@ -46,6 +51,8 @@ public final class ReportsActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        palette = ThemeStore.look(this).palette();
+        themeRev = ThemeStore.rev(this);
         prefs = getSharedPreferences("hud", 0);
         String saved = prefs.getString(PREF_PERIOD, ReportPeriod.WEEK.name());
         try {
@@ -58,7 +65,7 @@ public final class ReportsActivity extends Activity {
         atCurrent = true;
 
         root = new FrameLayout(this);
-        root.setBackgroundColor(0xff06090f);
+        root.setBackgroundColor(palette.reportInk);
         setContentView(root);
         rebuildView();
         startService(new Intent(this, HudService.class));
@@ -68,6 +75,11 @@ public final class ReportsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // 从外观页回来：主题 revision 变了就整页重建，颜色不能停在旧 look
+        if (themeRev != ThemeStore.rev(this)) {
+            recreate();
+            return;
+        }
         // 跨天回到前台时，报告里的「今天」已经过期
         long today = UsageDay.dayStartOf(System.currentTimeMillis());
         if (requestedToday != 0L && requestedToday != today) {
@@ -217,13 +229,13 @@ public final class ReportsActivity extends Activity {
         }
         switch (period) {
             case WEEK:
-                view = new WeekReportView(this);
+                view = new WeekReportView(this, palette);
                 break;
             case MONTH:
-                view = new MonthReportView(this);
+                view = new MonthReportView(this, palette);
                 break;
             default:
-                view = new YearReportView(this);
+                view = new YearReportView(this, palette);
                 break;
         }
         root.addView(view, new FrameLayout.LayoutParams(

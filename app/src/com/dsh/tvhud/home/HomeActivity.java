@@ -4,6 +4,10 @@ import com.dsh.tvhud.hud.HudService;
 import com.dsh.tvhud.pet.PetActivity;
 import com.dsh.tvhud.pet.PetSettingsActivity;
 import com.dsh.tvhud.report.ReportsActivity;
+import com.dsh.tvhud.ui.Palette;
+import com.dsh.tvhud.ui.Theme;
+import com.dsh.tvhud.ui.ThemeStore;
+import com.dsh.tvhud.ui.Ui;
 import com.dsh.tvhud.usage.MainActivity;
 import com.dsh.tvhud.usage.UsageDay;
 
@@ -15,6 +19,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -31,14 +36,6 @@ import java.util.Locale;
  * 版式沿用详情页的安静台账：中性底色 + 小字号 + 发丝线，颜色只留给数据。
  */
 public class HomeActivity extends Activity {
-    private static final String CJK_FONT = "/system/fonts/MILanPro_Normal.ttf";
-
-    private static final int COL_BG = 0xff0e1114;
-    private static final int COL_PRIMARY = 0xffe9eef3;
-    private static final int COL_SECOND = 0xff9aa7b2;
-    private static final int COL_TERTIARY = 0xff5f6b76;
-    private static final int COL_HAIRLINE = 0x288a97a4;
-    private static final int COL_ROW_HOVER = 0x1fffffff;
 
     private static final int ACTION_RECORD = 0;
     private static final int ACTION_REPORT = 1;
@@ -68,7 +65,7 @@ public class HomeActivity extends Activity {
             new Item("使用记录", "今日 · 历史 · 左右键切换日期", ACTION_RECORD),
             new Item("使用报告", "周报 · 月报 · 年报，趋势与构成", ACTION_REPORT),
             new Item("我的宠物", "商店 · 换装 · 装饰 · 进化", ACTION_PET),
-            new Item("家长设置", "每场时长 · 每天场次 · 允许时段 · 宠物周报",
+            new Item("家长设置", "时间 · 时段 · 外观 · 周报与维护",
                     ACTION_PET_SETTINGS, "PIN"),
     };
 
@@ -76,14 +73,23 @@ public class HomeActivity extends Activity {
     private Typeface num = Typeface.DEFAULT;
     private Typeface din = Typeface.DEFAULT;
 
+    /** 当前外观；onResume 里比对 revision，变了就重建。 */
+    private Palette palette;
+    private int themeRev;
+
     private TextView metaLine;
     private View firstRow;
+    private View lastRow;
     private final SimpleDateFormat dateFmt =
             new SimpleDateFormat("yyyy-MM-dd EEE", Locale.CHINA);
 
     @Override
     protected void onCreate(Bundle bundle) {
         super.onCreate(bundle);
+        Ui.ensureFonts(this);
+        Theme theme = ThemeStore.get(this);
+        palette = theme.palette;
+        themeRev = ThemeStore.rev(this);
         initFonts();
         buildUi();
         startService(new Intent(this, HudService.class));
@@ -92,6 +98,10 @@ public class HomeActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (themeRev != ThemeStore.rev(this)) {
+            recreate();
+            return;
+        }
         refreshMeta();
         if (firstRow != null && !firstRow.isFocused()) {
             firstRow.requestFocus();
@@ -101,18 +111,10 @@ public class HomeActivity extends Activity {
     // ---------- 字体 / 尺寸 ----------
 
     private void initFonts() {
-        try {
-            cjk = Typeface.createFromFile(CJK_FONT);
-        } catch (Throwable ignored) {
-        }
-        try {
-            num = Typeface.createFromAsset(getAssets(), "MIUI_EX_Light.ttf");
-        } catch (Throwable ignored) {
-        }
-        try {
-            din = Typeface.createFromAsset(getAssets(), "DINPro_Medium.otf");
-        } catch (Throwable ignored) {
-        }
+        Ui.ensureFonts(this);
+        cjk = Ui.cjk();
+        din = Ui.din();
+        num = Ui.num();
     }
 
     private int dp(float v) {
@@ -139,7 +141,7 @@ public class HomeActivity extends Activity {
 
     private View hairline() {
         View v = new View(this);
-        v.setBackgroundColor(COL_HAIRLINE);
+        v.setBackgroundColor(palette.appRule);
         return v;
     }
 
@@ -152,26 +154,25 @@ public class HomeActivity extends Activity {
     private void buildUi() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(COL_BG);
+        root.setBackgroundColor(palette.appInk);
         root.setPadding(dp(64), dp(36), dp(64), dp(22));
 
         // 眉标行：tv-pilot …………………………… 日期 · 今日时长
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.addView(label("tv-pilot", 10f, COL_SECOND, din, 0.22f));
+        header.addView(label("tv-pilot", 10f, palette.appText2, din, 0.22f));
         header.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        metaLine = label("", 10f, COL_TERTIARY, cjk, 0.04f);
+        metaLine = label("", 10f, palette.appText3, cjk, 0.04f);
         metaLine.setGravity(Gravity.END);
         header.addView(metaLine);
         root.addView(header);
 
-        // 标题
-        TextView title = label("使用台账", 22f, COL_PRIMARY, cjk, 0.08f);
-        LinearLayout.LayoutParams titleLp = lp(LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        titleLp.topMargin = dp(12);
-        root.addView(title, titleLp);
+        // 标题行已移除：品牌与日期足够定位，菜单居中像一张浮着的台账
+        LinearLayout.LayoutParams headerRuleLp = lp(LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(1));
+        headerRuleLp.topMargin = dp(18);
+        root.addView(hairline(), headerRuleLp);
 
         // 菜单整体在剩余空间里垂直居中，像一个浮着的表格
         root.addView(new View(this), new LinearLayout.LayoutParams(0, 0, 1f));
@@ -192,6 +193,9 @@ public class HomeActivity extends Activity {
             if (i == 0) {
                 firstRow = row;
             }
+            if (i == ITEMS.length - 1) {
+                lastRow = row;
+            }
         }
         LinearLayout.LayoutParams bottomRuleLp = lp(LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(1));
@@ -207,7 +211,7 @@ public class HomeActivity extends Activity {
             ver = "v" + pi.versionName;
         } catch (Throwable ignored) {
         }
-        TextView version = label(ver, 9f, COL_TERTIARY, din, 0.10f);
+        TextView version = label(ver, 9f, palette.appText3, din, 0.10f);
         version.setGravity(Gravity.END);
         root.addView(version, lp(LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -236,34 +240,54 @@ public class HomeActivity extends Activity {
         row.addView(accent, accentLp);
 
         final TextView idx = label(String.format(Locale.US, "%02d", index + 1), 10f,
-                COL_TERTIARY, din, 0.06f);
+                palette.appText3, din, 0.06f);
         row.addView(idx, lp(dp(34), LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        final int nameBase = 0xffcfd8e0;
+        final int nameBase = palette.appText2;
         final TextView name = label(item.label, 15f, nameBase, cjk, 0.04f);
         row.addView(name, lp(dp(220), LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        final TextView desc = label(item.desc, 10f, COL_TERTIARY, cjk, 0.04f);
+        final TextView desc = label(item.desc, 10f, palette.appText3, cjk, 0.04f);
         row.addView(desc, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         final TextView tag = label(item.tag.isEmpty() ? "›" : item.tag,
-                item.tag.isEmpty() ? 15f : 9f, COL_TERTIARY, cjk, 0.10f);
+                item.tag.isEmpty() ? 15f : 9f, palette.appText3, cjk, 0.10f);
         tag.setGravity(Gravity.END);
         row.addView(tag, lp(dp(110), LinearLayout.LayoutParams.WRAP_CONTENT));
 
         row.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
-                row.setBackgroundColor(hasFocus ? COL_ROW_HOVER : 0x00000000);
+                row.setBackgroundColor(hasFocus ? palette.appRowHover : 0x00000000);
                 GradientDrawable bg = new GradientDrawable();
-                bg.setColor(hasFocus ? 0xe6ffffff : 0x00000000);
+                bg.setColor(hasFocus ? palette.appSpine : 0x00000000);
                 bg.setCornerRadius(dp(1.5f));
                 accent.setBackground(bg);
-                idx.setTextColor(hasFocus ? COL_PRIMARY : COL_TERTIARY);
-                name.setTextColor(hasFocus ? COL_PRIMARY : nameBase);
-                desc.setTextColor(hasFocus ? COL_SECOND : COL_TERTIARY);
-                tag.setTextColor(hasFocus ? COL_PRIMARY : COL_TERTIARY);
+                idx.setTextColor(hasFocus ? palette.appText : palette.appText3);
+                name.setTextColor(hasFocus ? palette.appText : nameBase);
+                desc.setTextColor(hasFocus ? palette.appText2 : palette.appText3);
+                tag.setTextColor(hasFocus ? palette.appText : palette.appText3);
+            }
+        });
+
+        // 上下键在菜单两端循环：第一条按上 = 最后一条，最后一条按下 = 第一条
+        row.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                if (event.getAction() != KeyEvent.ACTION_DOWN) {
+                    return false;
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP && index == 0 && lastRow != null) {
+                    lastRow.requestFocus();
+                    return true;
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && index == ITEMS.length - 1
+                        && firstRow != null) {
+                    firstRow.requestFocus();
+                    return true;
+                }
+                return false;
             }
         });
 
