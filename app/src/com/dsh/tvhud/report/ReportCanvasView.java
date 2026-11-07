@@ -503,10 +503,7 @@ public abstract class ReportCanvasView extends View {
                 : "近 " + count + " 年";
         text(c, name + " · 左右切换", x + 52f, y + 10.5f, 7.5f, C_SUB, cjk,
                 Paint.Align.LEFT, 0.4f);
-        String rightNote = (r.current ? "当前周期" : "当前查看 " + periodLabel())
-                + " · 柱高 = 总时长";
-        text(c, rightNote, x + CONTENT_W - 10f, y + 10.5f, 7f, C_DIM, cjk,
-                Paint.Align.RIGHT, 0.2f);
+        // 右上角不再写「当前周期 · 柱高 = 总时长」：周期条本身已经能看出选中项
 
         float areaX = x + 16f;
         float areaW = CONTENT_W - 32f;
