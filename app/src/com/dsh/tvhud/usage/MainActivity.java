@@ -56,7 +56,6 @@ public class MainActivity extends Activity {
 
     private TextView metaLine;
     private TextView totalValue;
-    private TextView totalUnit;
     private LinearLayout catRow;
     private LinearLayout listContainer;
     private TimelineView timeline;
@@ -216,7 +215,7 @@ public class MainActivity extends Activity {
         row1.addView(metaLine);
         root.addView(row1);
 
-        // 主角：今日合计；右侧是分类图例（颜色只做圆点）
+        // 主角：总时长；右侧是分类图例（颜色只做圆点）
         LinearLayout row2 = new LinearLayout(this);
         row2.setOrientation(LinearLayout.HORIZONTAL);
         row2.setGravity(Gravity.BOTTOM);
@@ -226,13 +225,6 @@ public class MainActivity extends Activity {
 
         totalValue = label("00:00", 26f, COL_PRIMARY, num, 0.02f);
         row2.addView(totalValue);
-
-        totalUnit = label("今日合计", 9f, COL_TERTIARY, cjk, 0.10f);
-        LinearLayout.LayoutParams unitLp = lp(LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        unitLp.leftMargin = dp(14);
-        unitLp.bottomMargin = dp(6);
-        row2.addView(totalUnit, unitLp);
 
         row2.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
 
@@ -390,22 +382,18 @@ public class MainActivity extends Activity {
                     .append('-').append(r.title).append('-').append(r.ci).append(';');
         }
 
-        String sumLabel;
         if (isToday) {
             long uptime = SystemClock.elapsedRealtime() / 1000L;
             eyebrow.setText("今日使用");
             metaLine.setText(String.format(Locale.CHINA, "%s · 已开机 %d 天 %02d:%02d",
                     dateFmt.format(new Date(now)), uptime / 86400,
                     (uptime % 86400) / 3600, (uptime % 3600) / 60));
-            sumLabel = "今日合计";
         } else {
             eyebrow.setText("使用记录");
             metaLine.setText("‹ " + dateFmt.format(new Date(shownDay)) + " › · 左右键切换日期");
-            sumLabel = "当日合计";
         }
+        // 顶部只保留总时长，不再显示「今日合计 · N 段」
         totalValue.setText(fmtClock(total));
-        totalUnit.setText(rows.isEmpty() ? sumLabel
-                : String.format(Locale.CHINA, "%s · %d 段", sumLabel, rows.size()));
 
         StringBuilder catSig = new StringBuilder();
         for (int i = 0; i < cats.length; i++) {
