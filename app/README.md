@@ -1,7 +1,7 @@
 # tv-pilot（`com.dsh.tvhud`）
 
 电视端 App **tv-pilot**（包名 `com.dsh.tvhud`，包名保持不变以兼容覆盖升级与本地数据）：
-屏保右上角角标 + 今日使用台账 + 使用记录 + 周/月/年使用报告 + 电子宠物「小电视兽」。
+屏保右上角角标 + 使用记录（今日台账 + 历史回看）+ 周/月/年使用报告 + 电子宠物「小电视兽」。
 纯 Java + 系统 API，没有 Gradle / Android Studio，`build.sh` 直接出 APK。
 
 ## 源码分层（AI agent 先看这里）
@@ -48,8 +48,8 @@ app/src/com/dsh/tvhud/
 
 | 组件 | 作用 |
 |---|---|
-| `HomeActivity` | 启动页菜单：今日使用 / 使用记录 / 使用报告 / 我的宠物 / AI 语音助手（占位）/ 设置（占位）。加功能改 `ITEMS` |
-| `MainActivity` | 台账详情：合计、分类图例、0:00→24:00 时间轴、明细；每分钟刷新，保持焦点与滚动 |
+| `HomeActivity` | 启动页菜单：使用记录 / 使用报告 / 我的宠物 / AI 语音助手（占位）/ 设置（占位）。加功能改 `ITEMS` |
+| `MainActivity` | 使用记录：今日台账（合计/分类/时间轴/明细）+ ←→ 按天回看历史；每分钟刷新，保持焦点与滚动 |
 | `ReportsActivity` | 使用报告：周报 / 月报 / 年报三套 Canvas 布局；←→ 回看、↑↓ 切粒度、OK 回本期；长按只认第一下，加载中保留上一帧，失败按 OK 重试 |
 | `report/ReportEngine` / `ReportMath` / `DayAgg` / `Report` | 365 天归档聚合、上期对比、周期条与洞察；后台线程取快照聚合，纯计算与 Android 读取分层 |
 | `report/ChartAxis` / `BarStack` | 纵轴刻度与堆叠柱几何（周/月/年共用，纯函数，`tests/java` 覆盖） |

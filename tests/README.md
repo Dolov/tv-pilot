@@ -7,7 +7,7 @@
 | 离线脚本 | `tests/fake-adb` + `tests/run.sh` | skill 脚本的连接阶梯、识别、取数、`--json` 契约 | `make test` |
 | 纯逻辑单元 | `tests/java/` + `tests/java/stubs/` | tv-pilot 里不依赖 Android 的逻辑：报告周期/聚合/洞察/几何 + 宠物等级/照顾/场次预算/题库/商店/分支/退化/变异/时间窗 | `make test` |
 | 真机冒烟 | `tests/e2e/report-smoke.sh` | 装 APK → 打开报告 → 周/月/年导航 → 日志/崩溃/一致性断言 + 截图 | `make e2e` |
-| 全量真机回归 | `tests/e2e/full-regression.sh` | 首页 / 今日使用 / 使用记录 / 报告三页 / 宠物房间四分区 / 屏保服务 + 归档完整性 | `make regression` |
+| 全量真机回归 | `tests/e2e/full-regression.sh` | 首页 / 使用记录（今日+历史） / 报告三页 / 宠物房间四分区 / 屏保服务 + 归档完整性 | `make regression` |
 
 `make check && make test` 是提交门禁（CI 也跑）；`make e2e` 需要电视，不进 CI。
 
@@ -87,8 +87,7 @@ make apk && make regression
 比 `make e2e` 覆盖更全，把**所有现有页面**走一遍并断言：
 
 1. 首页：5 个菜单项都在，默认选中第 1 项；
-2. 今日使用：合计 / 段数 / 分类图例 / 时间轴 / 明细都渲染；
-3. 使用记录：按天回看（落到最近有归档的一天），左右键翻日期不崩；
+2. 使用记录：今日台账（合计 / 段数 / 分类图例 / 时间轴 / 明细）渲染，左右键按天回看不崩；
 4. 使用报告：周/月/年三档 + 翻页 + 回本期 + 返回首页；
 5. 屏保角标：`HudService` 在跑、无障碍条目在（开机自启依赖）；
 6. 数据侧：先发 `am broadcast -a com.dsh.tvhud.ARCHIVE_NOW` 让服务强制写一次当天归档，

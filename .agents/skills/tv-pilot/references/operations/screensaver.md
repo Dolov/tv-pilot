@@ -142,7 +142,7 @@ wm.addView(view, lp);
 打开 tv-pilot 先到首页菜单（`com.dsh.tvhud/com.dsh.tvhud.home.HomeActivity`），**不再直接进详情页**——详情页以后会长在菜单里（AI 语音、设置…），加功能只需要改 `HomeActivity.ITEMS`。
 
 - 启动组件：`HomeActivity`（Manifest 里 `MAIN` + `LEANBACK_LAUNCHER` + `LAUNCHER`）；`MainActivity` 变成子页面（`exported=true`，仍可 `am start -n com.dsh.tvhud/com.dsh.tvhud.usage.MainActivity` 单独调试）
-- 条目：`01 今日使用`（`ACTION_TODAY`）→ 详情页今天；`02 使用记录`（`ACTION_HISTORY`）→ 详情页历史模式（从菜单进入时落到最近有归档的一天，没有就昨天）；`03 AI 语音助手` / `04 设置`（`ACTION_SOON`，右侧「即将上线」，按确认弹 toast）
+- 条目（v1.17 起「今日使用 / 使用记录」合并为一个入口）：`01 使用记录`（`ACTION_RECORD`）→ 详情页今天，遥控器 ←→ 就地按天回看历史；`02 使用报告` → 周/月/年报；`03 我的宠物`；`04 AI 语音助手` / `05 设置`（`ACTION_SOON`，右侧「即将上线」，按确认弹 toast）
 - 加功能：`ITEMS` 里加一行 `new Item("名字", "一句话说明", ACTION_XXX)`（可选第 4 个参数是右侧标签），再在 `open()` 里分发；`ACTION_SOON` 自动置灰、不跳转
 - 遥控器：上下键换焦点、确认打开；**返回键回菜单**（再按返回退出到桌面/屏保）
 - 顶栏：左「tv-pilot」（DIN 10dp 字距 0.22）+ 右「日期 · 今日 36:25」；今日时长取 `HudService.peekUsage()`，服务没起来时回落 `UsageDay.load()`，`onResume` 刷新
@@ -150,7 +150,7 @@ wm.addView(view, lp);
 
 ## 详情页：时间轴 + 分段明细（v1.4 起；v1.5 视觉改版；v1.9 起从首页菜单进）
 
-屏保角标只是摘要；打开 **tv-pilot** →「今日使用」是完整详情页（组件 `com.dsh.tvhud/com.dsh.tvhud.usage.MainActivity`，从菜单进有返回栈，`am start -n com.dsh.tvhud/com.dsh.tvhud.usage.MainActivity` 也能直接调试）：
+屏保角标只是摘要；打开 **tv-pilot** →「使用记录」是完整详情页（组件 `com.dsh.tvhud/com.dsh.tvhud.usage.MainActivity`，从菜单进有返回栈，`am start -n com.dsh.tvhud/com.dsh.tvhud.usage.MainActivity` 也能直接调试）：
 
 - 顶部：日期 / 已开机时长，右侧「今日合计」（与长条同一份数据求和）
 - 分类小计：视频 / 音乐 / 儿童学习 / 桌面系统 / 其他，按类别颜色列时长

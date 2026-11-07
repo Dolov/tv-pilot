@@ -139,8 +139,7 @@ key 224 1.2            # KEYCODE_WAKEUP：待机时先亮屏
 adb_sh shell am start -n com.dsh.tvhud/.home.HomeActivity >/dev/null 2>&1
 sleep 2.5
 key 20 0.4
-key 20 0.4
-key 23 4.5            # 菜单第 3 项「使用报告」
+key 23 4.5            # 菜单第 2 项「使用报告」
 if resumed_activity | grep -q 'com.dsh.tvhud/.report.ReportsActivity'; then
   pass "报告页已打开（ReportsActivity）"
 else

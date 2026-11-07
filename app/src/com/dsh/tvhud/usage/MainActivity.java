@@ -38,11 +38,6 @@ import java.util.Locale;
  * 屏保角标不受影响。
  */
 public class MainActivity extends Activity {
-    /** 从首页菜单进来时指定打开哪一页：今日 / 使用记录。 */
-    public static final String EXTRA_OPEN = "open";
-    public static final String OPEN_TODAY = "today";
-    public static final String OPEN_HISTORY = "history";
-
     private static final String CJK_FONT = "/system/fonts/MILanPro_Normal.ttf";
     /** 详情页刷新间隔：一分钟一次就够（秒级刷新会让列表不断重建、焦点被打断）。 */
     private static final long REFRESH_MS = 60000L;
@@ -68,7 +63,6 @@ public class MainActivity extends Activity {
     private TextView eyebrow;
     private ScrollView scrollView;
     private long shownDay = 0L;
-    private String openMode = OPEN_TODAY;
 
     // 用哨兵值而不是 ""：空的一天 rows 签名本来就是 ""，否则首次进入空日期时列表不会渲染空状态
     private String shownSignature = "\u0001";
@@ -88,10 +82,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle bundle) {
         super.onCreate(bundle);
-        Intent intent = getIntent();
-        if (intent != null && OPEN_HISTORY.equals(intent.getStringExtra(EXTRA_OPEN))) {
-            openMode = OPEN_HISTORY;
-        }
         initFonts();
         buildUi();
         startService(new Intent(this, HudService.class));
@@ -353,8 +343,8 @@ public class MainActivity extends Activity {
         long now = System.currentTimeMillis();
         long todayStart = UsageDay.dayStartOf(now);
         if (shownDay == 0L) {
-            // 从菜单的「使用记录」进来时，落到最近有存档的一天；没有存档就停到今天
-            shownDay = OPEN_HISTORY.equals(openMode) ? latestArchivedDay(todayStart) : todayStart;
+            // 从首页「使用记录」进来先看今天，左右键再回看历史
+            shownDay = todayStart;
         }
         if (shownDay > todayStart) {
             shownDay = todayStart;
@@ -432,17 +422,6 @@ public class MainActivity extends Activity {
         }
 
         timeline.setData(segs, shownDay, isToday ? now : 0L);
-    }
-
-    /** 最近一个「有当天存档」的日期（不含今天）；都没有就落到昨天。 */
-    private long latestArchivedDay(long todayStart) {
-        for (int i = 1; i < HistoryStore.KEEP_DAYS; i++) {
-            long d = todayStart - i * UsageDay.DAY_MS;
-            if (HistoryStore.has(this, d)) {
-                return d;
-            }
-        }
-        return todayStart - UsageDay.DAY_MS;
     }
 
     /** 分类图例：小圆点 + 名称 + 时长；颜色只做圆点。 */

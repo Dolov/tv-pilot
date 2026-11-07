@@ -117,37 +117,24 @@ else
 fi
 screenshot "01-home"
 
-# ---------- 2. 今日使用 ----------
-step "今日使用（台账详情）"
+# ---------- 2. 使用记录（今日台账 + 左右键历史回看，已合并为一个入口） ----------
+step "使用记录（今日 + 历史回看）"
 key 23 3.5
 if resumed | grep -q 'com.dsh.tvhud/.usage.MainActivity'; then
-  pass "今日使用打开（MainActivity）"
-else
-  fail "今日使用没打开" "$(resumed)"
-fi
-screenshot "02-today"
-key 4 2.0
-
-# ---------- 3. 使用记录（按天回看） ----------
-step "使用记录（历史回看）"
-key 20 0.5
-key 23 3.5
-if resumed | grep -q 'com.dsh.tvhud/.usage.MainActivity'; then
-  pass "使用记录打开（MainActivity 历史模式）"
+  pass "使用记录打开（MainActivity，默认今天）"
 else
   fail "使用记录没打开" "$(resumed)"
 fi
-screenshot "03-history"
-# 左右键翻日期，不应崩溃
-key 21 1.6
-key 22 1.6
-pass "使用记录左右翻日期无异常"
-screenshot "03-history-prev"
+screenshot "02-record-today"
+# 左右键翻日期，不应崩溃（今天 → 昨天 → 今天）
+key 21 1.8
+screenshot "02-record-history"
+key 22 1.8
+pass "左右键按天回看无异常"
 key 4 2.0
 
-# ---------- 4. 使用报告：三粒度 + 导航 ----------
+# ---------- 3. 使用报告：三粒度 + 导航 ----------
 step "使用报告"
-key 20 0.5
 key 20 0.5
 key 23 3.5
 if resumed | grep -q 'com.dsh.tvhud/.report.ReportsActivity'; then
@@ -178,7 +165,7 @@ fi
 # ---------- 5. 电子宠物（房间 / 商店 / 衣柜 / 装饰） ----------
 step "电子宠物"
 for i in 1 2 3 4 5 6; do key 19 0.2; done
-for i in 1 2 3; do key 20 0.4; done
+for i in 1 2; do key 20 0.4; done
 key 23 3.5
 if resumed | grep -q 'com.dsh.tvhud/.pet.PetActivity'; then
   pass "宠物房间打开（PetActivity）"

@@ -40,13 +40,12 @@ public class HomeActivity extends Activity {
     private static final int COL_HAIRLINE = 0x288a97a4;
     private static final int COL_ROW_HOVER = 0x1fffffff;
 
-    private static final int ACTION_TODAY = 0;
-    private static final int ACTION_HISTORY = 1;
-    private static final int ACTION_REPORT = 2;
-    private static final int ACTION_PET = 3;
-    private static final int ACTION_SOON = 4;
+    private static final int ACTION_RECORD = 0;
+    private static final int ACTION_REPORT = 1;
+    private static final int ACTION_PET = 2;
+    private static final int ACTION_SOON = 3;
 
-    /** 一个菜单条目。加功能时在 ITEMS 里加一行，action 写 ACTION_TODAY 之类的分发。 */
+    /** 一个菜单条目。加功能时在 ITEMS 里加一行，action 写 ACTION_* 之类的分发。 */
     private static final class Item {
         final String label;
         final String desc;
@@ -70,8 +69,7 @@ public class HomeActivity extends Activity {
     }
 
     private static final Item[] ITEMS = {
-            new Item("今日使用", "时间轴 · 分段明细 · 看了什么", ACTION_TODAY),
-            new Item("使用记录", "按天回看，保留最近 365 天", ACTION_HISTORY),
+            new Item("使用记录", "今日 · 历史 · 左右键切换日期", ACTION_RECORD),
             new Item("使用报告", "周报 · 月报 · 年报，趋势与构成", ACTION_REPORT),
             new Item("我的宠物", "商店 · 换装 · 装饰 · 进化", ACTION_PET),
             new Item("AI 语音助手", "用手机说话，问电视看了什么", ACTION_SOON, "即将上线"),
@@ -299,11 +297,8 @@ public class HomeActivity extends Activity {
             startActivity(new Intent(this, PetActivity.class));
             return;
         }
-        Intent i = new Intent(this, MainActivity.class);
-        i.putExtra(MainActivity.EXTRA_OPEN,
-                item.action == ACTION_HISTORY ? MainActivity.OPEN_HISTORY
-                        : MainActivity.OPEN_TODAY);
-        startActivity(i);
+        // 使用记录 = 今日台账 + 左右键按天回看（两页合并成一个入口）
+        startActivity(new Intent(this, MainActivity.class));
     }
 
     /** 顶栏右侧：日期 + 今日已看时长（服务没起来时读本地存档）。 */

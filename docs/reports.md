@@ -57,9 +57,9 @@
 
 ```
 HomeActivity
-├── 今日使用        → MainActivity(OPEN_TODAY)      不变
-├── 使用记录        → MainActivity(OPEN_HISTORY)    不变
+├── 使用记录        → MainActivity（今日台账 + ←→ 历史回看）
 ├── 使用报告  ← 新增 → ReportsActivity（本设计）
+├── 我的宠物        → PetActivity
 ├── AI 语音助手     → 占位                          不变
 └── 设置            → 占位                          不变
 ```
@@ -256,7 +256,7 @@ for day in [windowStart, today]:
 | **P1** | 月报页（日历热力、每日趋势、周内平均、环形）+ 年报表（12 月走势、月×时热力、季度构成）+ 周期导航条 / 回到本期 / 缓存 | ~1100 行 |
 | **P2** | 入场动画、柱状图焦点下钻（OK → 当日台账）、年报日历热力（可选）、skill 侧 `report.sh --json` 对账、屏保「本周」角标 | 按需 |
 
-版本号 1.16 / 17；同步 `CHANGELOG.md`、`docs/architecture.md`、`app/README.md`。
+版本号 1.17 / 18；同步 `CHANGELOG.md`、`docs/architecture.md`、`app/README.md`。
 
 ## 9. 验证
 
