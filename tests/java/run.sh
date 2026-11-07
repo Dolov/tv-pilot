@@ -86,6 +86,7 @@ done < <(find "$HERE/stubs" -name '*.java')
   "${STUBS[@]}" \
   "${SOURCES[@]}" \
   "$HERE/src/com/dsh/tvhud/report/ReportCoreTest.java" \
+  "$HERE/src/com/dsh/tvhud/usage/CategoriesTest.java" \
   "$HERE/src/com/dsh/tvhud/pet/PetCoreTest.java" \
   "$HERE/src/com/dsh/tvhud/pet/PetShopTest.java" 2>"$TMP/javac.err"
 if [[ $? -ne 0 ]]; then
@@ -96,5 +97,6 @@ fi
 
 # 固定时区，和电视一致（报告按本地时区做日界运算）
 "$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.report.ReportCoreTest || exit 1
+"$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.usage.CategoriesTest || exit 1
 "$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.pet.PetCoreTest || exit 1
 "$JAVA" -Duser.timezone=Asia/Shanghai -cp "$OUT" com.dsh.tvhud.pet.PetShopTest

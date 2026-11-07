@@ -42,6 +42,7 @@ tests/java/
 ├── stubs/                       # 只为编译通过的最小 Android/JSON 桩，不会被真的调用
 └── src/com/dsh/tvhud/
     ├── report/ReportCoreTest.java  # package com.dsh.tvhud.report
+    ├── usage/CategoriesTest.java   # 包名/类名 → 视频/音乐/儿童/桌面
     ├── pet/PetCoreTest.java        # 等级/照顾/衰减/场次预算/题库
     └── pet/PetShopTest.java        # 商店/衣柜/分支/退化/变异/流水/周末/时间窗
 ```
@@ -52,7 +53,8 @@ tests/java/
 `ChartAxis`（纵轴档位与轴高）、`UsageDay.snapshot`（跨线程快照）、`HistoryStore`（旧归档缺省 scheme 3、
 播放记录越界自检）；宠物侧覆盖 `PetEngine`（等级/阶段/照顾/衰减/换牙/每日结算/分支/退化/变异/躲壳）、
 `Budget`（15×3 场次、续时、答题失败、家长时间、周末加场、允许时段）、`QuizBank`（解析/抽题/判分/非法题跳过）、
-`Shop`（买/退/穿/喂/装饰最多 3 个）、`PetJournal`（同日覆盖、保留 14 天、周报汇总）。
+`Shop`（买/退/穿/喂/装饰最多 3 个）、`PetJournal`（同日覆盖、保留 14 天、周报汇总）、
+`Categories`（视频/音乐/儿童/桌面/其他，含 PatchWall 内嵌酷狗插件宿主页）。
 
 **加用例**：在对应 `ReportCoreTest` / `PetCoreTest` 里加一个 `runCase(...)`；测新逻辑时先把它写成不 import Android
 的纯函数（参考 `BarStack`、`ReportMath`），否则离线测试编不过。`javac` 不可用时整层 SKIP，

@@ -46,15 +46,19 @@ public final class Categories {
                 && isPlayerPage(className)) {
             return VIDEO;
         }
+        // PatchWall 内嵌音乐插件（酷狗）走的是插件宿主页，包名仍是桌面
+        if (base == SYSTEM && isPatchWallMusicHost(pkg, className)) {
+            return MUSIC;
+        }
         return base;
     }
 
     /** 详情/播放类页面：DetailsActivity、PlayActivity、PlayerActivity、VideoDetailActivity… */
     private static boolean isPlayerPage(String className) {
-        if (className == null || className.isEmpty()) {
+        String simple = simpleName(className);
+        if (simple.isEmpty()) {
             return false;
         }
-        String simple = className.substring(className.lastIndexOf('.') + 1);
         return simple.contains("Detail")
                 || simple.contains("Play")
                 || simple.contains("Video")
@@ -75,6 +79,33 @@ public final class Categories {
             default:
                 return "其他";
         }
+    }
+
+    /**
+     * 分类规则版本：映射改了就 +1，服务启动时只重建「今天」的分段（历史归档不动）。
+     * v2：PatchWall 内嵌音乐插件（酷狗）从前台类 ProxySingleTaskActivity 识别成「音乐」。
+     */
+    public static final int RULES_REV = 2;
+
+    /**
+     * PatchWall 插件宿主页：酷狗音乐等内嵌插件跑在 com.mitv.tvhome 的
+     * ProxySingleTaskActivity 里，只看包名会被记成「桌面/系统」。
+     */
+    public static boolean isPatchWallMusicHost(String pkg, String className) {
+        if (pkg == null || !pkg.startsWith("com.mitv.tvhome")) {
+            return false;
+        }
+        String simple = simpleName(className);
+        return "ProxySingleTaskActivity".equals(simple)
+                || simple.contains("Kugou")
+                || simple.contains("Music");
+    }
+
+    private static String simpleName(String className) {
+        if (className == null || className.isEmpty()) {
+            return "";
+        }
+        return className.substring(className.lastIndexOf('.') + 1);
     }
 
     public static int of(String pkg) {

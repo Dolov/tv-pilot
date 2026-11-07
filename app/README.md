@@ -63,7 +63,7 @@ app/src/com/dsh/tvhud/
 | `hud/HudView` | 自绘角标：开机状态 / 遥控器电量 / 今日使用长条（无文字，颜色即图例） |
 | `usage/UsageDay` | 当天分段模型（`[start,end)` + 类别），落盘 `SharedPreferences("hud")` |
 | `usage/HistoryStore` | 按天归档到 `files/history/yyyy-MM-dd.json`，保留 365 天；带 `v` 分类版本号 |
-| `usage/Categories` | 包名/类名 → 类别；改规则必须 bump `UsageDay.SCHEME` |
+| `usage/Categories` | 包名/类名 → 类别；改映射 bump `Categories.RULES_REV`（只重建今天），改分段口径才 bump `UsageDay.SCHEME` |
 | `usage/PlayEntry` | 从米家上报日志解析「片名/集数」 |
 | `hud/CtrlReceiver` / `BootReceiver` / `BootAccessibilityService` | 广播控制、开机广播、无障碍开机自启（MIUI 的 `stopped=true` 会让 `BOOT_COMPLETED` 收不到） |
 

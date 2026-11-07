@@ -125,7 +125,7 @@ wm.addView(view, lp);
 
 - 看动画/看片时 PatchWall 播放器**不切 Activity**，前台一直是 `com.mitv.tvhome.DetailsActivity`（包名 = 桌面）。只按包名分类会记成 `SYSTEM` 灰蓝 → 长条上「看不到看动画的片段」。
 - 解法：`UsageEvents.Event.getClassName()`——api-28 `android.jar` 里有这个公开方法，**本机 Android 9 实测可用**（拿得到 `DetailsActivity` / `MainActivityUserMode`）；`dumpsys usagestats` 里也带 `class=`，可先用 adb 核对。
-- 实现：`Categories.of(pkg, className)`——包名分类为 SYSTEM、pkg 是 tvhome 时，类名含 `Detail`/`Play`/`Video`/`Theater` → 改记 `VIDEO`；取不到类名退回按包名（老固件安全）。
+- 实现：`Categories.of(pkg, className)`——包名分类为 SYSTEM、pkg 是 tvhome 时，类名含 `Detail`/`Play`/`Video`/`Theater` → 改记 `VIDEO`；类名是插件宿主 `ProxySingleTaskActivity`（2026-11 实测：PatchWall 内嵌酷狗音乐，媒体会话 `Kugou_Media`）→ 改记 `MUSIC`；取不到类名退回按包名（老固件安全）。改映射要 bump `Categories.RULES_REV`，服务升级后只重建「今天」的分段。
 - 近似性：详情页停留 ≠ 一定在播片（选集、看简介也算视频粉）。对「孩子看动画」场景够用；要精确播放态见 `references/operations/usage-stats.md` 末尾。
 
 **坑**

@@ -20,6 +20,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.graphics.Typeface;
+import android.media.AudioManager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -50,10 +51,13 @@ public class HudService extends Service {
     private static final String CJK_FONT = "/system/fonts/MILanPro_Normal.ttf";
     private static final String SCREENSAVER_PKG = "com.mitv.screensaver";
     private static final String BATT_PREFIX = "bluetooth_hid_battery_";
+    /** 分类规则版本的已应用标记；+1 时启动后只重建今天的分类（历史归档不动）。 */
+    private static final String K_RULES_REV = "usage_rules_rev";
 
     private WindowManager wm;
     private UsageStatsManager usm;
     private PowerManager power;
+    private AudioManager audio;
 
     private HudView hud;
     private Typeface cjk;
@@ -174,6 +178,7 @@ public class HudService extends Service {
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
         usm = (UsageStatsManager) getSystemService(USAGE_STATS_SERVICE);
         power = (PowerManager) getSystemService(POWER_SERVICE);
+        audio = (AudioManager) getSystemService(AUDIO_SERVICE);
         adbKeep = getSharedPreferences("hud", 0).getBoolean("adb_keep", false);
         previewMode = getSharedPreferences("hud", 0).getBoolean("usage_preview", false);
         petState = PetStore.loadState(this);
@@ -188,6 +193,8 @@ public class HudService extends Service {
         loadPlays();
         readMiio(true);
         importSeed();
+        // 播放记录先就位，再重建今天的分类，避免归档时把片单写成空
+        reclassifyTodayIfNeeded();
         HistoryStore.cleanup(this);
         archiveToday(true);
         handler.post(ticker);
@@ -208,6 +215,28 @@ public class HudService extends Service {
         } catch (Throwable t) {
             return false;
         }
+    }
+
+    /** 系统音乐流是否正在响：PatchWall 内嵌音乐插件没有独立的包名，只能靠它兜底。 */
+    private boolean musicActive() {
+        try {
+            return audio != null && audio.isMusicActive();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
+     * 前台使用分类：先按包名/类名；PatchWall（com.mitv.tvhome）的普通页面在放音乐时
+     * 也算「音乐」——否则内嵌酷狗插件会被记成「桌面/系统」。
+     */
+    private int categoryOf(String pkg, String cls) {
+        int cat = Categories.of(pkg, cls);
+        if (cat == Categories.SYSTEM && pkg != null
+                && pkg.startsWith("com.mitv.tvhome") && musicActive()) {
+            return Categories.MUSIC;
+        }
+        return cat;
     }
 
     /** 给同进程的详情页用（主线程）：内存里的今日分段，调用方不要跨线程持有。 */
@@ -259,7 +288,7 @@ public class HudService extends Service {
                 // 否则不同颜色交界处会留下 1~2px 的空白。
                 replayEvents(lastTickWall, wall);
             } else if (using) {
-                int cat = Categories.of(lastTop, lastClass);
+                int cat = categoryOf(lastTop, lastClass);
                 usage.append(lastTickWall, wall, cat);
                 if (cat == Categories.VIDEO && petBudget != null) {
                     petBudget.onVideo(wall - lastTickWall);
@@ -301,6 +330,120 @@ public class HudService extends Service {
             savedUsageRev = usage.revision();
         } catch (Throwable ignored) {
         }
+    }
+
+    /**
+     * 分类规则升级后，只把「今天」已经记下的 PatchWall 音乐插件时段改成音乐。
+     * 为什么要单独重建：UsageDay 只存类别、不存包名/类名，事后无法逐段识别；
+     * 用 UsageEvents 找回插件宿主页的时间窗，再按时间窗拆分原分段，其余类别原样保留。
+     * 历史归档不做（没有事件可查，也避免改坏已定稿数据）。
+     */
+    private void reclassifyTodayIfNeeded() {
+        try {
+            android.content.SharedPreferences sp = getSharedPreferences("hud", 0);
+            if (sp.getInt(K_RULES_REV, 0) >= Categories.RULES_REV) {
+                return;
+            }
+            long now = System.currentTimeMillis();
+            long today = UsageDay.dayStartOf(now);
+            if (usage == null || usage.dayStart != today) {
+                sp.edit().putInt(K_RULES_REV, Categories.RULES_REV).apply();
+                return;
+            }
+            List<long[]> windows = patchWallMusicWindows(today, now);
+            int changed = 0;
+            if (!windows.isEmpty()) {
+                UsageDay rebuilt = new UsageDay(today);
+                for (UsageDay.Seg seg : usage.segments()) {
+                    long cur = seg.start;
+                    for (int i = 0; i < windows.size() && cur < seg.end; i++) {
+                        long[] w = windows.get(i);
+                        long a = Math.max(cur, w[0]);
+                        long b = Math.min(seg.end, w[1]);
+                        if (b <= a) {
+                            continue;
+                        }
+                        if (cur < a) {
+                            rebuilt.append(cur, a, seg.cat);
+                        }
+                        rebuilt.append(a, b, Categories.MUSIC);
+                        cur = b;
+                    }
+                    if (cur < seg.end) {
+                        rebuilt.append(cur, seg.end, seg.cat);
+                    }
+                }
+                if (!rebuilt.segments().isEmpty()) {
+                    usage = rebuilt;
+                    sUsage = rebuilt;
+                    saveUsage(true);
+                    archiveToday(true);
+                    changed = 1;
+                }
+            }
+            sp.edit().putInt(K_RULES_REV, Categories.RULES_REV).apply();
+            Log.i(TAG, "usage rules rev=" + Categories.RULES_REV + " reclassified=" + changed
+                    + " windows=" + windows.size()
+                    + " segs=" + (usage == null ? 0 : usage.segments().size()));
+        } catch (Throwable t) {
+            Log.w(TAG, "reclassify today failed: " + t);
+        }
+    }
+
+    /** 找出今天由 PatchWall 插件宿主承载的音乐时间窗（互不重叠，按时间排序）。 */
+    private List<long[]> patchWallMusicWindows(long from, long to) {
+        List<long[]> out = new ArrayList<long[]>();
+        if (usm == null || from >= to) {
+            return out;
+        }
+        UsageEvents events = usm.queryEvents(from, to);
+        if (events == null) {
+            return out;
+        }
+        UsageEvents.Event e = new UsageEvents.Event();
+        long t = from;
+        boolean interactive = false;
+        String top = null;
+        String topClass = null;
+        while (events.hasNextEvent()) {
+            events.getNextEvent(e);
+            int type = e.getEventType();
+            if (type != UsageEvents.Event.SCREEN_INTERACTIVE
+                    && type != UsageEvents.Event.SCREEN_NON_INTERACTIVE
+                    && type != UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                continue;
+            }
+            long et = e.getTimeStamp();
+            if (et < from) {
+                continue;
+            }
+            if (et > to) {
+                et = to;
+            }
+            if (interactive && top != null && Categories.isPatchWallMusicHost(top, topClass)
+                    && et > t) {
+                out.add(new long[]{t, et});
+            }
+            t = et;
+            switch (type) {
+                case UsageEvents.Event.SCREEN_INTERACTIVE:
+                    interactive = true;
+                    break;
+                case UsageEvents.Event.SCREEN_NON_INTERACTIVE:
+                    interactive = false;
+                    break;
+                case UsageEvents.Event.MOVE_TO_FOREGROUND:
+                    top = e.getPackageName();
+                    topClass = classNameOf(e);
+                    break;
+                default:
+                    break;
+            }
+        }
+        if (interactive && top != null && Categories.isPatchWallMusicHost(top, topClass) && to > t) {
+            out.add(new long[]{t, to});
+        }
+        return out;
     }
 
     /**
@@ -368,7 +511,7 @@ public class HudService extends Service {
                 }
                 if (interactive && top != null && !SCREENSAVER_PKG.equals(top)
                         && !isOwn(top) && et > t) {
-                    usage.append(t, et, Categories.of(top, topClass));
+                    usage.append(t, et, categoryOf(top, topClass));
                 }
                 t = et;
                 switch (type) {
@@ -388,7 +531,7 @@ public class HudService extends Service {
             }
             if (interactive && top != null && !SCREENSAVER_PKG.equals(top)
                     && !isOwn(top) && to > t) {
-                usage.append(t, to, Categories.of(top, topClass));
+                usage.append(t, to, categoryOf(top, topClass));
             }
         } catch (Throwable t) {
             Log.w(TAG, "replayEvents failed: " + t);
